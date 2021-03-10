@@ -1,0 +1,10 @@
+#-------------------------------------------------------------------------------
+# .dockerignore
+#-------------------------------------------------------------------------------
+
+# Ignore the following files and folders during a Docker COPY:
+node_modules
+.dockerignore
+.eslintignore
+.eslintrc.json
+README.md
