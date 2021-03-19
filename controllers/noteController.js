@@ -6,11 +6,7 @@
 
 const { body, validationResult } = require('express-validator');
 const async = require('async');
-const {
-  areNamesValid,
-  containsDuplicates,
-  getMissingItems,
-} = require('./helperController');
+const arrayHelper = require('../helpers/arrayHelper');
 const BikeRide = require('../models/bikeRide');
 const Book = require('../models/book');
 const Health = require('../models/health');
@@ -20,6 +16,166 @@ const Note = require('../models/note');
 const Person = require('../models/person');
 const Tag = require('../models/tag');
 const Workout = require('../models/workout');
+
+//------------------------------------------------------------------------------
+// Public (Exported) Functions
+//------------------------------------------------------------------------------
+
+/**
+ * Get the total number of notes.
+ *
+ * Processes the API route GET /api/notes/count.
+ *
+ * @param {Request}  req  The HTTP request object.
+ * @param {Response} res  The HTTP response object.
+ *
+ * @return {Response} An HTTP response object with errors or the total number
+ *                    of notes in the database.
+ */
+exports.count = (req, res) => {
+  Note.estimatedDocumentCount((err, count) => {
+    if (err) {
+      return res.status(500).json({ status: 'error', messages: [err] });
+    }
+
+    return res.status(200).json({ status: 'ok', messages: [], data: count });
+  });
+};
+
+/**
+ * Creates a new note.
+ *
+ * Processes the API route /api/notes by executing a series of helper
+ * (middleware?) functions.
+ */
+exports.create = [
+  validateReqBody,
+  validateReqData,
+  createNote,
+];
+
+/**
+ * Deletes the specified note.
+ *
+ * Processes the API route DELETE /api/notes/:id.
+ *
+ * @param {Request}  req  The HTTP request object.
+ * @param {Response} res  The HTTP response object.
+ *
+ * @return {Response} An HTTP response object with errors or the deleted note.
+ */
+exports.delete = (req, res) => {
+  Note
+    .findByIdAndRemove(req.params.id)
+    .exec((err, results) => {
+      if (err) {
+        return res.status(500).json({ errors: [err] });
+      }
+
+      if (!results) {
+        return res.status(404).json({
+          errors: [{ error: `Could not find a note with ID '${req.params.id}'.` }],
+        });
+      }
+
+      return res.status(200).json({
+        message: `Successfully deleted note '${req.params.id}'.`,
+        data: results,
+      });
+    });
+};
+
+/**
+ * Reads (gets) the specified note.
+ *
+ * Processes the API route GET /api/notes/:id.
+ *
+ * @param {Request}  req  The HTTP request object.
+ * @param {Response} res  The HTTP response object.
+ *
+ * @return {Response} An HTTP response object with errors or the resulting
+ *                    note.
+ */
+ exports.read = (req, res) => {
+  Note
+    .findById(req.params.id)
+    .populate('type')
+    .populate('tags')
+    .populate('people')
+    .exec((err, results) => {
+      if (err) {
+        const errors = [];
+        errors.push(err);
+        errors.push({ error: `Encountered an error finding a note with ID '${req.params.id}'.` });
+        return res.status(500).json({ errors });
+      }
+
+      if (!results) {
+        return res.status(404).json({
+          errors: [{ error: `Could not find a note with ID '${req.params.id}'.` }],
+        });
+      }
+
+      return res.status(200).json({ data: results });
+    });
+};
+
+/**
+ * Reads (gets) all notes.
+ *
+ * Processes the API route GET /api/notes.
+ *
+ * @param {Request}  req  The HTTP request object.
+ * @param {Response} res  The HTTP response object.
+ *
+ * @return {Response} An HTTP response object with errors or the resulting
+ *                    notes.
+ */
+exports.readAll = (req, res) => {
+  Note
+    .find()
+    .sort({ date: 'descending' })
+    .populate('type')
+    .populate('tags')
+    .populate('people')
+    .exec((err, results) => {
+      if (err) {
+        const errors = [];
+        errors.push(err);
+        errors.push({ error: 'Encountered an error getting all notes.' });
+        return res.status(500).json({ errors });
+      }
+
+      return res.status(200).json({ data: results });
+    });
+};
+
+/**
+ * Updates (replaces) the specified note with the provided note.
+  *
+ * Processes the API route PUT /api/notes/:id.
+ *
+ * @todo: This function has to be re-written...see personController.
+ *
+ * @param {Request}  req  The HTTP request object.
+ * @param {Response} res  The HTTP response object.
+ */
+exports.update = (req, res) => {
+  const updatedNote = req.body;
+
+  Note
+    .findOneAndUpdate({ _id: req.params.id }, updatedNote, { new: true })
+    .exec((err, results) => {
+      if (err) {
+        return res.status(500).json({ errors: [err] });
+      }
+
+      return res.status(200).json({
+        message: `Successfully updated note '${req.params.id}'.`,
+        data: results,
+      });
+    });
+};
 
 //------------------------------------------------------------------------------
 // Helpers Functions
@@ -32,7 +188,7 @@ const Workout = require('../models/workout');
  *
  * @return {BikeRide} A bike ride note.
  */
-function createBikeRide(req) {
+ function createBikeRide(req) {
   let note = new BikeRide();
   note = populateBaseNote(note, req);
   note.bike = req.body.bike;
@@ -100,8 +256,8 @@ function createLife(req) {
 /**
  * Creates a new note of the type specified in the HTTP request object.
  *
- * @param {Request}  req   The HTTP request object.
- * @param {Response} res   The HTTP response object.
+ * @param {Request}  req  The HTTP request object.
+ * @param {Response} res  The HTTP response object.
  *
  * @return {Response} An HTTP response containing error information or a copy
  *                    of the new note that was created.
@@ -209,7 +365,7 @@ function populateBaseNote(note, req) {
  * Validates parts of an HTTP request body that are common to all types of
  * notes.
  *
- * @param {Request}  req  The HTTP request object.
+ * @param {Request} req  The HTTP request object.
  */
 async function validateBaseNote(req) {
   await body('type', 'Type is required.')
@@ -221,7 +377,7 @@ async function validateBaseNote(req) {
     .isArray()
     .withMessage('Tags must be specified in an array; an empty array is okay.')
     .not()
-    .custom(containsDuplicates)
+    .custom(arrayHelper.containsDuplicates)
     .withMessage('Duplicate tags are not allowed.')
     .not()
     .custom((value, { request }) => value.includes(request.body.type))
@@ -246,7 +402,7 @@ async function validateBaseNote(req) {
     .isArray()
     .withMessage('People must be specified in an array.')
     .not()
-    .custom(containsDuplicates)
+    .custom(arrayHelper.containsDuplicates)
     .withMessage('Duplicate names are not allowed.')
     .run(req);
 
@@ -260,7 +416,7 @@ async function validateBaseNote(req) {
  * Validates the parts of an HTTP request body that are specific to "Bike Ride"
  * notes.
  *
- * @param {Request}  req  The HTTP request object.
+ * @param {Request} req  The HTTP request object.
  */
 async function validateBikeRide(req) {
   const bikes = BikeRide.schema.obj.bike.enum;
@@ -279,7 +435,7 @@ async function validateBikeRide(req) {
     .isArray()
     .withMessage('Metrics must be specified in an array if it is specified at all.')
     .not()
-    .custom(containsDuplicates)
+    .custom(arrayHelper.containsDuplicates)
     .withMessage('Duplicate tags are not allowed.')
     .run(req);
 
@@ -336,7 +492,7 @@ async function validateBikeRide(req) {
  * Validates the parts of an HTTP request body that are specific to "Book"
  * notes.
  *
- * @param {Request}  req  The HTTP request object.
+ * @param {Request} req  The HTTP request object.
  */
 async function validateBook(req) {
   // @todo: Get these enums from the model or somehow use the same definition.
@@ -349,7 +505,7 @@ async function validateBook(req) {
     .isLength({ min: 1 })
     .withMessage('At least one author is required.')
     .not()
-    .custom(containsDuplicates)
+    .custom(arrayHelper.containsDuplicates)
     .withMessage('Duplicate authors are not allowed.')
     .run(req);
 
@@ -379,7 +535,7 @@ async function validateBook(req) {
  * Validates the parts of an HTTP request body that are specific to "Hike"
  * notes.
  *
- * @param {Request}  req  The HTTP request object.
+ * @param {Request} req  The HTTP request object.
  */
 async function validateHike(req) {
   await body('metrics')
@@ -387,7 +543,7 @@ async function validateHike(req) {
     .isArray()
     .withMessage('Metrics must be specified in an array if it is specified at all.')
     .not()
-    .custom(containsDuplicates)
+    .custom(arrayHelper.containsDuplicates)
     .withMessage('Duplicate tags are not allowed.')
     .run(req);
 
@@ -452,7 +608,8 @@ async function validateReqBody(req, res, next) {
       break;
     default:
       return res.status(422).json({
-        errors: [{ error: `Invalid note type '${req.body.type}'.` }],
+        status: 'error',
+        messages: [ `Invalid note type '${req.body.type}'.` ],
         data: req.body,
       });
   }
@@ -462,7 +619,8 @@ async function validateReqBody(req, res, next) {
 
   if (!validationErrors.isEmpty()) {
     return res.status(422).json({
-      errors: validationErrors.array(),
+      status: 'error',
+      messages: validationErrors.array(),
       data: req.body,
       function: 'validateReqBody',
     });
@@ -547,28 +705,30 @@ async function validateReqData(req, res, next) {
 
     // Check that the user supplied type is a valid tag (i.e., it exists
     // in the tags database collection).
-    if (!areNamesValid(results.type, [req.body.type], true)) {
+    if (!arrayHelper.areNamesValid(results.type, [req.body.type], true)) {
       errors.push({ error: `Invalid type: ${req.body.type}` });
     }
 
     // Check that all user supplied tag names are valid (i.e., they exist
     // in the tags database collection).
-    if (!areNamesValid(results.tags, req.body.tags, false)) {
-      const invalidTags = getMissingItems(results.tags, req.body.tags);
+    console.log(results.tags);
+    console.log(req.body.tags);
+    if (!arrayHelper.areNamesValid(results.tags, req.body.tags, false)) {
+      const invalidTags = arrayHelper.getMissingItems(results.tags, req.body.tags);
       errors.push({ error: `Invalid tag(s): ${invalidTags.join(', ')}` });
     }
 
     // Check that the user supplied workout is a valid tag (i.e., it exists
     // in the tags database collection).
     if (req.body.type === 'Workout'
-      && !areNamesValid(results.workout, [req.body.workout], false)) {
+      && !arrayHelper.areNamesValid(results.workout, [req.body.workout], false)) {
       errors.push({ error: `Invalid workout: ${req.body.workout}` });
     }
 
     // Check that the user supplied people names are valid people (i.e.,
     // they exist in the people database collection).
-    if (!areNamesValid(results.people, req.body.people, false)) {
-      const invalidPeople = getMissingItems(results.people, req.body.people);
+    if (!arrayHelper.areNamesValid(results.people, req.body.people, false)) {
+      const invalidPeople = arrayHelper.getMissingItems(results.people, req.body.people);
       errors.push({ error: `Invalid people: ${invalidPeople.join(', ')}` });
     }
 
@@ -592,7 +752,7 @@ async function validateReqData(req, res, next) {
  * Validates the parts of an HTTP request body that are specific to "Workout"
  * notes.
  *
- * @param {Request}  req  The HTTP request object.
+ * @param {Request} req  The HTTP request object.
  */
 async function validateWorkout(req) {
   await body('workout', 'A workout type is required.')
@@ -607,163 +767,3 @@ async function validateWorkout(req) {
   await body('metrics.*.value', 'A value for a workout property is required.')
     .run(req);
 }
-
-//------------------------------------------------------------------------------
-// Public (Exported) Functions
-//------------------------------------------------------------------------------
-
-/**
- * Get the total number of notes.
- *
- * Processes the API route GET /api/notes/count.
- *
- * @param {Request}  req  The HTTP request object.
- * @param {Response} res  The HTTP response object.
- *
- * @return {Response} An HTTP response object with errors or the total number
- *                    of notes in the database.
- */
-exports.count = (req, res) => {
-  Note.estimatedDocumentCount((err, count) => {
-    if (err) {
-      return res.status(500).json({ errors: [err] });
-    }
-
-    return res.status(200).json({ data: count });
-  });
-};
-
-/**
- * Creates a new note.
- *
- * Processes the API route /api/notes by executing a series of helper
- * (middleware?) functions.
- */
-exports.create = [
-  validateReqBody,
-  validateReqData,
-  createNote,
-];
-
-/**
- * Deletes the specified note.
- *
- * Processes the API route DELETE /api/notes/:id.
- *
- * @param {Request}  req  The HTTP request object.
- * @param {Response} res  The HTTP response object.
- *
- * @return {Response} An HTTP response object with errors or the deleted note.
- */
-exports.delete = (req, res) => {
-  Note
-    .findByIdAndRemove(req.params.id)
-    .exec((err, results) => {
-      if (err) {
-        return res.status(500).json({ errors: [err] });
-      }
-
-      if (!results) {
-        return res.status(404).json({
-          errors: [{ error: `Could not find a note with ID '${req.params.id}'.` }],
-        });
-      }
-
-      return res.status(200).json({
-        message: `Successfully deleted note '${req.params.id}'.`,
-        data: results,
-      });
-    });
-};
-
-/**
- * Reads (gets) all notes.
- *
- * Processes the API route GET /api/notes.
- *
- * @param {Request}  req  The HTTP request object.
- * @param {Response} res  The HTTP response object.
- *
- * @return {Response} An HTTP response object with errors or the resulting
- *                    notes.
- */
-exports.readAll = (req, res) => {
-  Note
-    .find()
-    .sort({ date: 'descending' })
-    .populate('type')
-    .populate('tags')
-    .populate('people')
-    .exec((err, results) => {
-      if (err) {
-        const errors = [];
-        errors.push(err);
-        errors.push({ error: 'Encountered an error getting all notes.' });
-        return res.status(500).json({ errors });
-      }
-
-      return res.status(200).json({ data: results });
-    });
-};
-
-/**
- * Reads (gets) the specified note.
- *
- * Processes the API route GET /api/notes/:id.
- *
- * @param {Request}  req  The HTTP request object.
- * @param {Response} res  The HTTP response object.
- *
- * @return {Response} An HTTP response object with errors or the resulting
- *                    note.
- */
-exports.read = (req, res) => {
-  Note
-    .findById(req.params.id)
-    .populate('type')
-    .populate('tags')
-    .populate('people')
-    .exec((err, results) => {
-      if (err) {
-        const errors = [];
-        errors.push(err);
-        errors.push({ error: `Encountered an error finding a note with ID '${req.params.id}'.` });
-        return res.status(500).json({ errors });
-      }
-
-      if (!results) {
-        return res.status(404).json({
-          errors: [{ error: `Could not find a note with ID '${req.params.id}'.` }],
-        });
-      }
-
-      return res.status(200).json({ data: results });
-    });
-};
-
-/**
- * Updates (replaces) the specified note with the provided note.
-  *
- * Processes the API route PUT /api/notes/:id.
- *
- * @todo: This function has to be re-written...see personController.
- *
- * @param {Request}  req  The HTTP request object.
- * @param {Response} res  The HTTP response object.
- */
-exports.update = (req, res) => {
-  const updatedNote = req.body;
-
-  Note
-    .findOneAndUpdate({ _id: req.params.id }, updatedNote, { new: true })
-    .exec((err, results) => {
-      if (err) {
-        return res.status(500).json({ errors: [err] });
-      }
-
-      return res.status(200).json({
-        message: `Successfully updated note '${req.params.id}'.`,
-        data: results,
-      });
-    });
-};

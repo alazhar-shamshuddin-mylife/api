@@ -3,12 +3,11 @@
   "version": "0.0.0",
   "private": true,
   "scripts": {
-    "build": "npm install",
     "clean": "rm -rf ./node_modules ./package-lock.json",
     "dev": "nodemon ./bin/www",
     "dotenv": "set -o allexport && . ../common/.env && set +o allexport && env",
-    "dotenvlocal": ". ../common/.env.local && env",
-    "start": "node ./bin/www"
+    "start": "node ./bin/www",
+    "test": "jest"
   },
   "dependencies": {
     "async": "^3.2.0",
@@ -22,12 +21,16 @@
     "moment": "^2.28.0",
     "mongoose": "^5.10.5",
     "morgan": "~1.9.1",
-    "pug": "^2.0.4"
+    "pug": "^3.0.2"
   },
   "devDependencies": {
+    "@shelf/jest-mongodb": "^1.2.3",
     "babel-eslint": "^10.1.0",
     "eslint": "^7.14.0",
     "eslint-config-airbnb-base": "^14.2.1",
-    "eslint-plugin-import": "^2.22.1"
+    "eslint-plugin-import": "^2.22.1",
+    "eslint-plugin-jest": "^24.3.1",
+    "jest": "^26.6.3",
+    "supertest": "^6.1.3"
   }
 }

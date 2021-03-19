@@ -18,6 +18,8 @@ const tagSchema = new Schema({
   toObject: { virtuals: true },
 });
 
+tagSchema.index({ name: 1 }, { unique: true });
+
 tagSchema
   .virtual('dateCreated')
   .get(function() {
@@ -30,7 +32,7 @@ tagSchema
     return moment(this.updated).format(common.dateFormat);
   });
 
-// Virtual for book's URL
+// Virtual for tag's URL
 tagSchema
   .virtual('url')
   .get(function() {

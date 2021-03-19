@@ -26,6 +26,8 @@ const personSchema = new Schema({
   toObject: { virtuals: true },
 });
 
+personSchema.index({ firstName: 1, middleName: 1, lastName: 1 }, { unique: true });
+
 personSchema
   .virtual('name')
   .get(function() {

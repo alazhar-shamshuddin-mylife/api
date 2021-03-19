@@ -6,23 +6,42 @@ const mongoose = require('mongoose');
 const logger = require('morgan');
 const path = require('path');
 // @todo: const { checkServerIdentity } = require('tls');
-
-// Import routes.
 const indexRouter = require('./routes/index');
 const apiRouter = require('./routes/api');
+const envHelper = require('./helpers/envHelper');
 
-// Initialize the app.
-const app = express();
+// Connect to the database.
+let mongoDB = undefined;
 
-// const mongoDB = 'mongodb://root:root@127.0.0.1:27001/mylife?authSource=admin';
-const mongoDB = `mongodb://${process.env.DB_API_USERNAME}:${process.env.DB_API_PASSWORD}@${process.env.DB_HOST}:${process.env.DB_PORT}/mylife?authSource=mylife`;
+if (process.env.NODE_ENV === 'test') {
+  // If we are running in test mode, use the temporary MongoDB In-Memory Server.
+  // This environment variable is set by Jest and/or the MongoDB In-Memory
+  // Server; we don't need to set it explicitly.
+  mongoDB = process.env.MONGO_URL;
+}
+else {
+  // Check that the required environment variables are defined.
+  envHelper.checkEnvVarIsDefinedOrExit('API_PORT', isEmptyOk = false);
+  envHelper.checkEnvVarIsDefinedOrExit('DB_API_USERNAME', isEmptyOkay = false);
+  envHelper.checkEnvVarIsDefinedOrExit('DB_API_PASSWORD', isEmptyOkay = false);
+  envHelper.checkEnvVarIsDefinedOrExit('DB_HOST', isEmptyOkay = false);
+  envHelper.checkEnvVarIsDefinedOrExit('DB_PORT', isEmptyOkay = false);
+
+  // In all other modes (dev, production, etc.), use a real MongoDB instance.
+  mongoDB = `mongodb://${process.env.DB_API_USERNAME}:${process.env.DB_API_PASSWORD}@${process.env.DB_HOST}:${process.env.DB_PORT}/mylife?authSource=mylife`;
+}
+
 mongoose.connect(mongoDB, {
   useNewUrlParser: true,
   useUnifiedTopology: true,
   useFindAndModify: false,
 });
+
 const db = mongoose.connection;
 db.on('error', console.error.bind(console, 'MongoDB connection error:'));
+
+// Initialize the app.
+const app = express();
 
 // Set up the view engine.
 app.set('views', path.join(__dirname, 'views'));

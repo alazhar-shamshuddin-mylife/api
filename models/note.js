@@ -20,6 +20,8 @@ const noteSchema = new Schema({
   toObject: { virtuals: true },
 });
 
+noteSchema.index({ date: 1, title: 1 }, { unique: true });
+
 noteSchema
   .virtual('dateCreated')
   .get(function() {

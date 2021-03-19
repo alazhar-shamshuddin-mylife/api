@@ -31,18 +31,12 @@ router.route('/people/:id')
   .put(personController.update) // Update a person.
   .delete(personController.delete); // Delete a person.
 
-// router.route('/tags/count').get(tagController.index); // Get the total number of tags.
-// router.route('/tags').get(tagController.index); // Get a list of tags.
-// router.route('/tags').post(tagController.create); // Create a tag.
-// router.route('/tags/:id')
-//   .get(tagController.read) // Get a specific tag.
-//   .put(tagController.update) // Update a tag.
+router.route('/tags/count').get(tagController.count); // Get the total number of tags.
+router.route('/tags').post(tagController.create); // Create a tag.
+router.route('/tags').get(tagController.readAll); // Get a list of tags.
+router.route('/tags/:id')
+  .get(tagController.read) // Get a specific tag.
+  .put(tagController.update) // Update a tag.
 //   .delete(tagController.delete); // Delete a tag.
-
-// router.route('/person').post(personController.create);
-// router.route('/person/:id').put(personController.update);
-
-router.route('/tag').post(tagController.create);
-router.route('/tag/:id').put(tagController.update);
 
 module.exports = router;
