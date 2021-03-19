@@ -19,8 +19,8 @@
 function checkEnvVarIsDefinedOrExit(envVar, isEmptyOk = false, message = '') {
   if (!(envVar in process.env)
     || (!isEmptyOk && !process.env[envVar])) {
-    message = message || `Required environment variable '${envVar}' is undefined.`;
-    console.error(message);
+    const errorMsg = message || `Required environment variable '${envVar}' is undefined.`;
+    console.error(errorMsg);
     process.exit(1);
   }
 }
