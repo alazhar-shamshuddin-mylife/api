@@ -20,7 +20,7 @@ function checkEnvVarIsDefinedOrExit(envVar, isEmptyOk = false, message = '') {
   if (!(envVar in process.env)
     || (!isEmptyOk && !process.env[envVar])) {
     const errorMsg = message || `Required environment variable '${envVar}' is undefined.`;
-    console.error(errorMsg);
+    console.error(errorMsg); // eslint-disable-line no-console
     process.exit(1);
   }
 }
