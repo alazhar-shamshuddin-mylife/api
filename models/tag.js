@@ -36,7 +36,7 @@ tagSchema
 tagSchema
   .virtual('url')
   .get(function() {
-    return `/tag/${this._id}`;
+    return `/tags/${this._id}`;
   });
 
 module.exports = mongoose.model('Tag', tagSchema);

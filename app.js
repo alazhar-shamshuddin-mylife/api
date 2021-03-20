@@ -32,9 +32,10 @@ else {
 }
 
 mongoose.connect(mongoDB, {
+  useCreateIndex: true,
+  useFindAndModify: false,
   useNewUrlParser: true,
   useUnifiedTopology: true,
-  useFindAndModify: false,
 });
 
 const db = mongoose.connection;

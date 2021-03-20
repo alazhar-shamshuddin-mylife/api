@@ -8,7 +8,7 @@ const lifeSchema = new Schema({});
 lifeSchema
   .virtual('url')
   .get(function() {
-    return `/note/life/${this._id}`;
+    return `/notes/life/${this._id}`;
   });
 
 module.exports = Note.discriminator('Life', lifeSchema);

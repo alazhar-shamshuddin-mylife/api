@@ -13,6 +13,6 @@ const workoutSchema = new Schema({
 
 workoutSchema
   .virtual('url')
-  .get(() => `/note/workout/${this._id}`);
+  .get(() => `/notes/workouts/${this._id}`);
 
 module.exports = Note.discriminator('Workout', workoutSchema);

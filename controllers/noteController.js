@@ -581,6 +581,8 @@ async function validateHike(req) {
  * @param {Response} res   The HTTP response object.
  * @param {@todo}    next  An implicit pointer the next Express middleware
  *                         function that should be called.
+ *
+ * @return {@todo} An HTTP error response or next middleware function.
  */
 async function validateReqBody(req, res, next) {
   await validateBaseNote(req);
@@ -711,8 +713,6 @@ async function validateReqData(req, res, next) {
 
     // Check that all user supplied tag names are valid (i.e., they exist
     // in the tags database collection).
-    console.log(results.tags);
-    console.log(req.body.tags);
     if (!arrayHelper.areNamesValid(results.tags, req.body.tags, false)) {
       const invalidTags = arrayHelper.getMissingItems(results.tags, req.body.tags);
       errors.push({ error: `Invalid tag(s): ${invalidTags.join(', ')}` });
@@ -742,8 +742,8 @@ async function validateReqData(req, res, next) {
 
     req.queryResults = results;
 
-    // @todo: Confirm this: A call to next() is required to process the
-    // remaining functions in the array of functions that define exports.create.
+    // Proceed to the functions in the array of functions that define
+    // exports.create.
     return next();
   });
 }

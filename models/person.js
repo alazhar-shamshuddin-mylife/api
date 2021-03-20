@@ -54,7 +54,7 @@ personSchema
 personSchema
   .virtual('url')
   .get(function() {
-    return `/person/${this._id}`;
+    return `/people/${this._id}`;
   });
 
 module.exports = mongoose.model('Person', personSchema);

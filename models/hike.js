@@ -17,7 +17,7 @@ const hikeSchema = new Schema({
 hikeSchema
   .virtual('url')
   .get(function() {
-    return `/note/hike/${this._id}`;
+    return `/notes/hikes/${this._id}`;
   });
 
 module.exports = Note.discriminator('Hike', hikeSchema);

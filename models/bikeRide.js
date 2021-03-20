@@ -22,7 +22,7 @@ const bikeRideSchema = new Schema({
 bikeRideSchema
   .virtual('url')
   .get(function() {
-    return `/note/bikeride/${this._id}`;
+    return `/notes/bikerides/${this._id}`;
   });
 
 module.exports = Note.discriminator('Bike Ride', bikeRideSchema);

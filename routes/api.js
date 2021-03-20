@@ -37,6 +37,6 @@ router.route('/tags').get(tagController.readAll); // Get a list of tags.
 router.route('/tags/:id')
   .get(tagController.read) // Get a specific tag.
   .put(tagController.update) // Update a tag.
-  .delete(tagController.count); // Delete a tag @todo fix this.
+  .delete(tagController.delete); // Delete a tag.
 
 module.exports = router;

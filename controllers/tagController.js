@@ -6,7 +6,10 @@
 
 const { body, validationResult } = require('express-validator');
 const async = require('async');
+const Note = require('../models/note');
+const Person = require('../models/person');
 const Tag = require('../models/tag');
+const Workout = require('../models/workout');
 
 //------------------------------------------------------------------------------
 // Public (Exported) Functions
@@ -42,6 +45,16 @@ exports.create = [
   validateReqBody,
   validateReqDataForCreate,
   createTag,
+];
+
+/**
+ * Deletes the specified tag.
+ *
+ * Processes the API route DELETE /api/tags/:id.
+ */
+exports.delete = [
+  validateReferentialIntegrity,
+  deleteTag,
 ];
 
 /**
@@ -140,6 +153,31 @@ function createTag(req, res) {
 }
 
 /**
+ * Deletes the specified tag.
+ *
+ * @param {Request}  req  The HTTP request object.
+ * @param {Response} res  The HTTP response object.
+ *
+ * @return {Response} An HTTP response object with errors or the deleted tag.
+ */
+ function deleteTag(req, res) {
+  Tag
+    .findByIdAndRemove(req.params.id)
+    .exec((err, results) => {
+      if (err) {
+        return res.status(500).json({ status: 'error', messages: [err], data: req.params.id });
+      }
+
+      if (!results) {
+        const msg = `Could not find a tag with ID '${req.params.id}'.`;
+        return res.status(404).json({ status: 'error', messages: [msg], data: req.params.id });
+      }
+
+      return res.status(200).json({ status: 'ok', messages: [], data: results });
+    });
+}
+
+/**
  * Updates an existing tag as specified in the HTTP request object.
  *
  * @param {Request}  req  The HTTP request object.
@@ -174,12 +212,91 @@ function updateTag(req, res) {
 }
 
 /**
+ * Validates that the specified tag can be deleted without violating
+ * referential integrity.  In other words, a tag can only be deleted if it is
+ * not referenced in any of the following models/fields (collection/fields):
+ *   - Note.tags (note.tags)
+ *   - Note.type (notes.type)
+ *   - Workout.workout (notes.workout)
+ *   - Person.tags (people.tags)
+ *
+ * @param {Request}  req   The HTTP request object.
+ * @param {Response} res   The HTTP response object.
+ * @param {@todo}    next  An implicit pointer to the next Express middleware
+ *                         function that should be called.
+ *
+ * @return {@todo} An HTTP error response or next middleware function.
+ */
+function validateReferentialIntegrity(req, res, next) {
+  async.parallel({
+    noteTags: (callback) => {
+      Note.find({ tags: req.params.id }).countDocuments().exec(callback);
+    },
+    noteTypes: (callback) => {
+      Note.find({ type: req.params.id }).countDocuments().exec(callback);
+    },
+    noteWorkouts: (callback) => {
+      // Note.find({ workout: req.params.id }).countDocuments().exec(callback);
+      Workout.find({ workout: req.params.id }).countDocuments().exec(callback);
+    },
+    peopleTags: (callback) => {
+      Person.find({ tags: req.params.id }).countDocuments().exec(callback);
+    },
+  },
+  (err, results) => {
+    if (err) {
+      return res.status(500).json({ status: 'error', messages: [err], data: req.params.id });
+    }
+
+    if (!results) {
+      const msg = 'Unexpected error: could not any data.';
+      return res.status(500).json({ status: 'error', messages: [msg], data: req.params.id });
+    }
+
+    if (results.noteTags > 0
+      || results.noteTypes > 0
+      || results.noteWorkouts > 0
+      || results.peopleTags > 0) {
+      let msg = `Cannot delete tag with ID '${req.params.id}' without breaking referential integrity.`;
+      msg = `${msg}  The tag is referenced in:`;
+
+      const referenceList = [];
+
+      if (results.noteTypes > 0) {
+        referenceList.push(`${results.noteTypes} notes.type`);
+      }
+
+      if (results.noteTags > 0) {
+        referenceList.push(`${results.noteTags} notes.tags`);
+      }
+
+      if (results.noteWorkouts > 0) {
+        referenceList.push(`${results.noteWorkouts} notes.workout`);
+      }
+
+      if (results.peopleTags > 0) {
+        referenceList.push(`${results.peopleTags} people.tags`);
+      }
+
+      msg = `${msg} ${referenceList.join(', ')} field(s).`;
+      return res.status(422).json({ status: 'error', messages: [msg], data: req.params.id });
+    }
+
+    // Proceed to the functions in the array of functions that define
+    // exports.delete.
+    return next();
+  });
+}
+
+/**
  * Validates an HTTP request body to ensure it contains a valid new tag.
  *
  * @param {Request}  req   The HTTP request object.
  * @param {Response} res   The HTTP response object.
  * @param {@todo}    next  An implicit pointer the next Express middleware
  *                         function that should be called.
+ *
+ * @return {@todo} An HTTP error response or next middleware function.
  */
 async function validateReqBody(req, res, next) {
   await body('name', 'A tag name is required and must be less than 25 characters long.')

@@ -62,19 +62,15 @@ exports.delete = (req, res) => {
     .findByIdAndRemove(req.params.id)
     .exec((err, results) => {
       if (err) {
-        return res.status(500).json({ errors: [err] });
+        return res.status(500).json({ status: 'error', messages: [err], data: req.params.id });
       }
 
       if (!results) {
-        return res.status(404).json({
-          errors: [{ error: `Could not find a person with ID '${req.params.id}'.` }],
-        });
+        const msg = `Could not find a person with ID '${req.params.id}'.`;
+        return res.status(404).json({ status: 'error', messages: [msg], data: req.params.id });
       }
 
-      return res.status(200).json({
-        message: `Successfully deleted person '${req.params.id}'.`,
-        data: results,
-      });
+      return res.status(200).json({ status: 'ok', messages: [], data: results });
     });
 };
 

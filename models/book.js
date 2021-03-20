@@ -13,7 +13,7 @@ const bookSchema = new Schema({
 bookSchema
   .virtual('url')
   .get(function() {
-    return `/note/book/${this._id}`;
+    return `/notes/books/${this._id}`;
   });
 
 module.exports = Note.discriminator('Book', bookSchema);
