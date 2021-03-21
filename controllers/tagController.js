@@ -53,7 +53,7 @@ exports.create = [
  * Processes the API route DELETE /api/tags/:id.
  */
 exports.delete = [
-  validateReferentialIntegrity,
+  validateReferentialIntegrityForDelete,
   deleteTag,
 ];
 
@@ -117,6 +117,7 @@ exports.readAll = (req, res) => {
 exports.update = [
   validateReqBody,
   validateReqDataForUpdate,
+  validateReferentialIntegrityForUpdate,
   updateTag,
 ];
 
@@ -198,16 +199,10 @@ function updateTag(req, res) {
 
   tag.save((err) => {
     if (err) {
-      return res.status(500).json({
-        errors: err,
-        body: req.body,
-      });
+      return res.status(500).json({ status: 'error', messages: [err], data: req.body });
     }
 
-    return res.status(200).json({
-      message: 'Tag updated!',
-      data: tag,
-    });
+    return res.status(200).json({ status: 'ok', messages: [], data: tag });
   });
 }
 
@@ -227,16 +222,15 @@ function updateTag(req, res) {
  *
  * @return {@todo} An HTTP error response or next middleware function.
  */
-function validateReferentialIntegrity(req, res, next) {
+function validateReferentialIntegrityForDelete(req, res, next) {
   async.parallel({
-    noteTags: (callback) => {
-      Note.find({ tags: req.params.id }).countDocuments().exec(callback);
-    },
     noteTypes: (callback) => {
       Note.find({ type: req.params.id }).countDocuments().exec(callback);
     },
+    noteTags: (callback) => {
+      Note.find({ tags: req.params.id }).countDocuments().exec(callback);
+    },
     noteWorkouts: (callback) => {
-      // Note.find({ workout: req.params.id }).countDocuments().exec(callback);
       Workout.find({ workout: req.params.id }).countDocuments().exec(callback);
     },
     peopleTags: (callback) => {
@@ -249,12 +243,12 @@ function validateReferentialIntegrity(req, res, next) {
     }
 
     if (!results) {
-      const msg = 'Unexpected error: could not any data.';
+      const msg = 'Unexpected error: the database query returned no results.';
       return res.status(500).json({ status: 'error', messages: [msg], data: req.params.id });
     }
 
-    if (results.noteTags > 0
-      || results.noteTypes > 0
+    if (results.noteTypes > 0
+      || results.noteTags > 0
       || results.noteWorkouts > 0
       || results.peopleTags > 0) {
       let msg = `Cannot delete tag with ID '${req.params.id}' without breaking referential integrity.`;
@@ -282,8 +276,89 @@ function validateReferentialIntegrity(req, res, next) {
       return res.status(422).json({ status: 'error', messages: [msg], data: req.params.id });
     }
 
-    // Proceed to the functions in the array of functions that define
+    // Proceed to the next function in the array of functions that defines
     // exports.delete.
+    return next();
+  });
+}
+
+/**
+ * Validates that the specified tag can be updated without violating
+ * referential integrity.  In other words, a tag can only be updated if
+ * changes to the following fields would not result in invaliding existing
+ * notes or people:
+ *   - isType
+ *   - isTag
+ *   - isWorkout
+ *   - isPerson
+ *
+ * All four of the flags above can be turned on (set to true) without
+ * violating referential integrity.  But we must make sure they are not used
+ * in existing notes or people before we turn them off (set them to false).
+ *
+ * @param {Request}  req   The HTTP request object.
+ * @param {Response} res   The HTTP response object.
+ * @param {@todo}    next  An implicit pointer to the next Express middleware
+ *                         function that should be called.
+ *
+ * @return {@todo} An HTTP error response or next middleware function.
+ */
+function validateReferentialIntegrityForUpdate(req, res, next) {
+  async.parallel({
+    noteTypes: (callback) => {
+      Note.find({ type: req.params.id }).countDocuments().exec(callback);
+    },
+    noteTags: (callback) => {
+      Note.find({ tags: req.params.id }).countDocuments().exec(callback);
+    },
+    noteWorkouts: (callback) => {
+      Workout.find({ workout: req.params.id }).countDocuments().exec(callback);
+    },
+    peopleTags: (callback) => {
+      Person.find({ tags: req.params.id }).countDocuments().exec(callback);
+    },
+  },
+  (err, results) => {
+    if (err) {
+      return res.status(500).json({ status: 'error', messages: [err], data: req.params.id });
+    }
+
+    if (!results) {
+      const msg = 'Unexpected error: the database query returned no results.';
+      return res.status(500).json({ status: 'error', messages: [msg], data: req.params.id });
+    }
+
+    if ((req.body.isType === 'false' && results.noteTypes > 0)
+      || (req.body.isTag === 'false' && results.noteTags > 0)
+      || (req.body.isWorkout === 'false' && results.noteWorkouts > 0)
+      || (req.body.isPerson === 'false' && results.peopleTags > 0)) {
+      let msg = `Cannot update tag with ID '${req.params.id}' without breaking referential integrity.`;
+      msg = `${msg}  The tag is referenced in:`;
+
+      const referenceList = [];
+
+      if (results.noteTypes > 0) {
+        referenceList.push(`${results.noteTypes} notes.type`);
+      }
+
+      if (results.noteTags > 0) {
+        referenceList.push(`${results.noteTags} notes.tags`);
+      }
+
+      if (results.noteWorkouts > 0) {
+        referenceList.push(`${results.noteWorkouts} notes.workout`);
+      }
+
+      if (results.peopleTags > 0) {
+        referenceList.push(`${results.peopleTags} people.tags`);
+      }
+
+      msg = `${msg} ${referenceList.join(', ')} field(s).`;
+      return res.status(422).json({ status: 'error', messages: [msg], data: req.params.id });
+    }
+
+    // Proceed to the next function in the array of functions that defines
+    // exports.update.
     return next();
   });
 }
@@ -341,7 +416,6 @@ async function validateReqBody(req, res, next) {
       status: 'error',
       messages: validationErrors.array(),
       data: req.body,
-      function: 'validateReqBody',
     });
   }
 
@@ -350,7 +424,7 @@ async function validateReqBody(req, res, next) {
 
 /**
  * Validates the data in the HTTP request body to ensure the new tag is
- * valid.  That is, this function confirms that the a tag with the same name
+ * valid.  That is, this function confirms that a tag with the same name
  * does not already exist.
  *
  * @param {Request}  req   The HTTP request object.
@@ -383,7 +457,6 @@ function validateReqDataForCreate(req, res, next) {
         status: 'error',
         messages: errors,
         data: req.body,
-        function: 'validateReqDataForCreate',
       });
     }
 
@@ -394,11 +467,18 @@ function validateReqDataForCreate(req, res, next) {
 }
 
 /**
- * @todo: Complete me.
+ * Validates the data in the HTTP request body to ensure the updated tag is
+ * valid.  That is, this function confirms that a tag with the same name
+ * does not already exist.
+ *
+ * @param {Request}  req   The HTTP request object.
+ * @param {Response} res   The HTTP response object.
+ * @param {@todo}    next  An implicit pointer to the next Express middleware
+ *                         function that should be called.
+ *
+ * @return {@todo} An HTTP error response or next middleware function.
  */
 function validateReqDataForUpdate(req, res, next) {
-  const errors = [];
-
   async.parallel({
     tag: (callback) => {
       Tag.find({ _id: req.params.id }).exec(callback);
@@ -410,32 +490,33 @@ function validateReqDataForUpdate(req, res, next) {
   },
   (err, results) => {
     if (err) {
-      errors.push(err);
+      return res.status(500).json({ status: 'error', messages: [err], data: req.body });
+    }
+
+    if (!results) {
+      const msg = 'Unexpected error: could not any data.';
+      return res.status(500).json({ status: 'error', messages: [msg], data: req.body });
     }
 
     // Check that the user supplied tag name does not already exist.
     if (results.tagByName.length > 1) {
-      errors.push({ error: `There are '${results.tagByName.length}' tags with the name ${req.body.name}; there should be only one.` });
-    }
-
-    if (results.tagByName.length === 1 && results.tagByName[0]._id.toString() !== req.params.id) {
-      errors.push({ error: `A tag called '${req.body.name}' already exists.` });
-    }
-
-    if (results.tag.length === 0) {
-      errors.push({ error: `A tag with ID '${req.params.id}' does not exist.` });
+      const msg = `There are '${results.tagByName.length}' tags with the name ${req.body.name}; there should be only one.`;
+      return res.status(500).json({ status: 'error', messages: [msg], data: req.body });
     }
 
     if (results.tag.length > 1) {
-      errors.push({ error: `There are '${results.tag.length}' tags with ID '${req.params.id}' where one was expected.` });
+      const msg = `There are '${results.tag.length}' tags with ID '${req.params.id}' where one was expected.`;
+      return res.status(500).json({ status: 'error', messages: [msg], data: req.body });
     }
 
-    if (errors.length > 0) {
-      return res.status(500).json({
-        errors,
-        body: req.body,
-        function: 'validateReqDataForUpdate',
-      });
+    if (results.tagByName.length === 1 && results.tagByName[0]._id.toString() !== req.params.id) {
+      const msg = `A tag called '${req.body.name}' already exists.`;
+      return res.status(422).json({ status: 'error', messages: [msg], data: req.body });
+    }
+
+    if (results.tag.length === 0) {
+      const msg = `A tag with ID '${req.params.id}' does not exist.`;
+      return res.status(422).json({ status: 'error', messages: [msg], data: req.body });
     }
 
     req.queryResults = results;

@@ -1,3 +1,9 @@
+/**
+ * This file seeds (creates) MyLife data for the integration tests.
+ *
+ * @author Alazhar Shamshuddin.
+ */
+
 const BikeRide = require('../../models/bikeRide');
 const Book = require('../../models/book');
 const Note = require('../../models/note');
@@ -5,51 +11,109 @@ const Person = require('../../models/person');
 const Tag = require('../../models/tag');
 const Workout = require('../../models/workout');
 
-const tags = [
-  // Types
-  {
-    name: 'Bike Ride', isType: true, isTag: false, isWorkout: false, isPerson: false, description: '',
-  },
-  {
-    name: 'Book', isType: true, isTag: false, isWorkout: false, isPerson: false, description: '',
-  },
-  {
-    name: 'Hike', isType: true, isTag: false, isWorkout: false, isPerson: false, description: '',
-  },
-  {
-    name: 'Health', isType: true, isTag: false, isWorkout: false, isPerson: false, description: '',
-  },
-  {
-    name: 'Life', isType: true, isTag: false, isWorkout: false, isPerson: false, description: '',
-  },
-  {
-    name: 'Workout', isType: true, isTag: false, isWorkout: false, isPerson: false, description: '',
-  },
-  // Workouts
-  {
-    name: 'Grouse Grind', isType: false, isTag: false, isWorkout: true, isPerson: false, description: '',
-  },
-  // Tags
-  {
-    name: 'Biking', isType: false, isTag: true, isWorkout: false, isPerson: false, description: '',
-  },
-  {
-    name: 'Exploring', isType: false, isTag: true, isWorkout: false, isPerson: false, description: '',
-  },
-  // People
-  {
-    name: 'Family', isType: false, isTag: false, isWorkout: false, isPerson: true, description: '',
-  },
-  {
-    name: 'Friend', isType: false, isTag: false, isWorkout: false, isPerson: true, description: '',
-  },
-];
-
 let seededTags;
 let seededPeople;
 let seededNotes;
 
+/**
+ * Seeds the MyLife database for integration testing purposes.
+ */
 async function seedData() {
+  const tags = [
+    // Types
+    {
+      name: 'Bike Ride',
+      isType: true,
+      isTag: false,
+      isWorkout: false,
+      isPerson: false,
+      description: '',
+    },
+    {
+      name: 'Book',
+      isType: true,
+      isTag: false,
+      isWorkout: false,
+      isPerson: false,
+      description: '',
+    },
+    {
+      name: 'Hike',
+      isType: true,
+      isTag: false,
+      isWorkout: false,
+      isPerson: false,
+      description: '',
+    },
+    {
+      name: 'Health',
+      isType: true,
+      isTag: false,
+      isWorkout: false,
+      isPerson: false,
+      description: '',
+    },
+    {
+      name: 'Life',
+      isType: true,
+      isTag: false,
+      isWorkout: false,
+      isPerson: false,
+      description: '',
+    },
+    {
+      name: 'Workout',
+      isType: true,
+      isTag: false,
+      isWorkout: false,
+      isPerson: false,
+      description: '',
+    },
+    // Workouts
+    {
+      name: 'Grouse Grind',
+      isType: false,
+      isTag: false,
+      isWorkout: true,
+      isPerson: false,
+      description: '',
+    },
+    // Tags
+    {
+      name: 'Biking',
+      isType: false,
+      isTag: true,
+      isWorkout: false,
+      isPerson: false,
+      description: '',
+    },
+    {
+      name: 'Exploring',
+      isType: false,
+      isTag: true,
+      isWorkout: false,
+      isPerson: false,
+      description: '',
+    },
+    // People
+    {
+      name: 'Family',
+      isType: false,
+      isTag: false,
+      isWorkout: false,
+      isPerson: true,
+      description: '',
+    },
+    {
+      name: 'Friend',
+      isType: false,
+      isTag: false,
+      isWorkout: false,
+      isPerson: true,
+      description: '',
+    },
+  ];
+
   seededTags = await Tag.insertMany(tags);
 
   const tagBook = await Tag.findOne({ name: 'Book' });
@@ -150,7 +214,7 @@ async function seedData() {
 
   seededNotes = await Note.find();
 
-  return {seededTags, seededNotes, seededPeople};
+  return { seededTags, seededNotes, seededPeople };
 }
 
 module.exports = {
