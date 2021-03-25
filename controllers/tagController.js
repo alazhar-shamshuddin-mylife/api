@@ -435,8 +435,6 @@ async function validateReqBody(req, res, next) {
  * @return {@todo} An HTTP error response or next middleware function.
  */
 function validateReqDataForCreate(req, res, next) {
-  const errors = [];
-
   async.parallel({
     tag: (callback) => {
       Tag.find({ name: req.body.name }).exec(callback);
@@ -444,24 +442,16 @@ function validateReqDataForCreate(req, res, next) {
   },
   (err, results) => {
     if (err) {
-      errors.push(err);
+      return res.status(500).json({ status: 'error', messages: [err], data: req.body });
     }
 
     // Check that the user supplied tag does not already exist.
     if (results.tag.length !== 0) {
-      errors.push(`A tag called '${req.body.name}' already exists.`);
-    }
-
-    if (errors.length > 0) {
-      return res.status(500).json({
-        status: 'error',
-        messages: errors,
-        data: req.body,
-      });
+      const msg = `A tag called '${req.body.name}' already exists.`;
+      return res.status(422).json({ status: 'error', messages: [msg], data: req.body });
     }
 
     req.queryResults = results;
-
     return next();
   });
 }

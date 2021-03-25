@@ -25,7 +25,7 @@ afterAll(async () => {
   await mongoose.connection.close();
 });
 
-describe('Get the number of tags.', () => {
+describe('Get the number of existing tags.', () => {
   let res;
 
   test('The HTTP response status and body should indicate success.', async () => {
@@ -144,15 +144,11 @@ describe('Create a valid, new tag.', () => {
   });
 });
 
-describe('Create an invalid, new tag.', () => {
+describe('Create a new tag with a duplicate name', () => {
   let res;
   let numTagsStart;
 
-  beforeAll(async () => {
-    numTagsStart = await Tag.countDocuments();
-  });
-
-  test('Cannot create a tag with a duplicate name.', async () => {
+  test('The HTTP response status and body should indicate failure.', async () => {
     const newTag = {
       name: 'Travelling',
       isType: false,
@@ -162,21 +158,35 @@ describe('Create an invalid, new tag.', () => {
       description: 'A tag for my out-of-province trips.',
     };
 
+    numTagsStart = await Tag.countDocuments();
     res = await request(app)
       .post('/api/tags')
       .send(newTag);
-    expect(res.statusCode).toBe(500);
+    expect(res.statusCode).toBe(422);
     expect(res.body.status).toBe('error');
     expect(res.body.messages).toStrictEqual(["A tag called 'Travelling' already exists."]);
+  });
+
+  test('The data in the response body should match the posted data.', async () => {
     expect(res.body.data).toStrictEqual({
       name: 'Travelling',
       isType: 'false',
       isTag: 'true',
       isWorkout: 'false',
       isPerson: 'false',
-      description: 'A tag for my out-of-province trips.'
+      description: 'A tag for my out-of-province trips.',
     });
   });
+
+  test('The number of tags should not have changed.', async () => {
+    res = await request(app).get('/api/tags/count');
+    expect(res.body.data).toBe(numTagsStart);
+  });
+});
+
+describe('Create an invalid, new tag.', () => {
+  let res;
+  let numTagsStart;
 
   test('Cannot create a tag with missing fields', async () => {
     const newTag = {
@@ -187,6 +197,7 @@ describe('Create an invalid, new tag.', () => {
       isPerson: undefined,
     };
 
+    numTagsStart = await Tag.countDocuments();
     res = await request(app)
       .post('/api/tags')
       .send(newTag);
@@ -335,6 +346,57 @@ describe('Update (put) an existing, used tag with valid data.', () => {
     expect(res.body.data.isWorkout).toBe(changedTag.isWorkout);
     expect(res.body.data.isPerson).toBe(changedTag.isPerson);
     expect(res.body.data.description).toBe(changedTag.description);
+  });
+});
+
+describe('Update (put) an existing tag with a duplicate name.', () => {
+  let res;
+  let numTagsStart;
+  let existingTag1;
+  let existingTag2;
+
+  test('The HTTP response status and body should indicate failure.', async () => {
+    existingTag1 = seededTags.find((tag) => tag.name === 'Hike');
+    existingTag2 = seededTags.find((tag) => tag.name === 'Family');
+
+    const changedTag = {
+      id: existingTag1.id,
+      name: existingTag2.name,
+      isType: false,
+      isTag: true,
+      isWorkout: false,
+      isPerson: false,
+      description: 'A tag for my out-of-province trips.',
+    };
+
+    numTagsStart = await Tag.countDocuments();
+
+    res = await request(app).get('/api/tags');
+    console.log(res.body);
+
+    res = await request(app)
+      .put(`/api/tags/${existingTag1.id}`)
+      .send(changedTag);
+    expect(res.statusCode).toBe(422);
+    expect(res.body.status).toBe('error');
+    expect(res.body.messages).toStrictEqual([`A tag called '${existingTag2.name}' already exists.`]);
+  });
+
+  test('The data in the response body should match the posted data.', async () => {
+    expect(res.body.data).toStrictEqual({
+      id: existingTag1.id,
+      name: existingTag2.name,
+      isType: 'false',
+      isTag: 'true',
+      isWorkout: 'false',
+      isPerson: 'false',
+      description: 'A tag for my out-of-province trips.',
+    });
+  });
+
+  test('The number of tags should not have changed.', async () => {
+    res = await request(app).get('/api/tags/count');
+    expect(res.body.data).toBe(numTagsStart);
   });
 });
 
