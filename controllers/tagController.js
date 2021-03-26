@@ -374,7 +374,7 @@ function validateReferentialIntegrityForUpdate(req, res, next) {
  * @return {@todo} An HTTP error response or next middleware function.
  */
 async function validateReqBody(req, res, next) {
-  await body('name', 'A tag name is required and must be less than 25 characters long.')
+  await body('name', 'A tag name is required; it must be between 1 and 25 characters long.')
     .trim()
     .isLength({ min: 1, max: 25 })
     .run(req);
@@ -445,7 +445,7 @@ function validateReqDataForCreate(req, res, next) {
       return res.status(500).json({ status: 'error', messages: [err], data: req.body });
     }
 
-    // Check that the user supplied tag does not already exist.
+    // Check that the tag does not already exist.
     if (results.tag.length !== 0) {
       const msg = `A tag called '${req.body.name}' already exists.`;
       return res.status(422).json({ status: 'error', messages: [msg], data: req.body });

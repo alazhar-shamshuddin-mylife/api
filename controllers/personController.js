@@ -206,16 +206,10 @@ function updatePerson(req, res) {
 
   person.save((err) => {
     if (err) {
-      return res.status(500).json({
-        errors: [err],
-        data: req.body,
-      });
+      return res.status(500).json({ status: 'error', messages: [err], data: req.body });
     }
 
-    return res.status(201).json({
-      message: 'Person updated!',
-      data: person,
-    });
+    return res.status(200).json({ status: 'ok', messages: [], data: person });
   });
 }
 
@@ -228,23 +222,24 @@ function updatePerson(req, res) {
  *                         function that should be called.
  */
 async function validateReqBody(req, res, next) {
-  await body('firstName', 'First name is required and must be less than 25 characters long.')
+  await body('firstName', 'First name is required; it must be between 1 and 25 characters long.')
     .trim()
     .isLength({ min: 1, max: 25 })
     .run(req);
 
-  await body('middleName', 'Middle is required but it can be an empty string.')
+  await body('middleName', 'Middle is required; it must be between 0 and 25 characters long.')
     .exists()
     .trim()
     .isLength({ max: 25 })
     .run(req);
 
-  await body('lastName', 'Last name is required and must be less than 25 characters long.')
+  await body('lastName', 'Last name is required; it must be between 0 and 25 characters long.')
+    .exists()
     .trim()
     .isLength({ max: 25 })
     .run(req);
 
-  await body('preferredName', 'Preferred name is required but it can be an empty string.')
+  await body('preferredName', 'Preferred name is required; it must be between 0 and 25 characters long.')
     .exists()
     .trim()
     .isLength({ max: 25 })
@@ -256,7 +251,7 @@ async function validateReqBody(req, res, next) {
     .isDate()
     .run(req);
 
-  await body('googlePhotoUrl', 'A Google Photo URL is required but it can be an empty string.')
+  await body('googlePhotoUrl', 'A Google Photo URL is required; it must be between 0 and 250 characters long.')
     .exists()
     .trim()
     .isLength({ max: 250 })
@@ -314,10 +309,10 @@ async function validateReqBody(req, res, next) {
   const validationErrors = validationResult(req);
 
   if (!validationErrors.isEmpty()) {
-    return res.status(422).json({
-      errors: validationErrors.array(),
-      body: req.body,
-      function: 'validateReqBody',
+    return res.status(422).json({ 
+      status: 'error', 
+      messages: validationErrors.array(),
+      data: req.body,
     });
   }
 
@@ -351,34 +346,25 @@ function validateReqDataForCreate(req, res, next) {
     },
   },
   (err, results) => {
-    const errors = [];
-
     if (err) {
-      errors.push(err);
+      return res.status(500).json({ status: 'error', messages: [err], data: req.body });
     }
 
     // Check that the person does not already exist.
     if (results.people.length !== 0) {
-      errors.push({ error: `A person with following first, middle and last names already exist: '${req.body.firstName}', '${req.body.middleName}', '${req.body.lastName}'.` });
+      const msg = `A person with following first, middle and last names already exist: '${req.body.firstName}', '${req.body.middleName}', '${req.body.lastName}'.`;
+      return res.status(422).json({ status: 'error', messages: [msg], data: req.body });
     }
 
-    // Check that all user supplied tag names are valid (i.e., they exist
-    // in the tags database collection).
+    // Check that all user supplied tag names are valid (i.e., they exist in
+    // the tags database collection).
     if (!arrayHelper.areNamesValid(results.tags, req.body.tags, false)) {
       const invalidTags = arrayHelper.getMissingItems(results.tags, req.body.tags);
-      errors.push({ error: `Invalid tag(s): ${invalidTags.join(', ')}` });
-    }
-
-    if (errors.length > 0) {
-      return res.status(500).json({
-        errors,
-        body: req.body,
-        function: 'validateReqDataForCreate',
-      });
+      const msg = `Invalid tag(s): ${invalidTags.join(', ')}.`;
+      return res.status(422).json({ status: 'error', messages: [msg], data: req.body });
     }
 
     req.queryResults = results;
-
     return next();
   });
 }
@@ -386,7 +372,7 @@ function validateReqDataForCreate(req, res, next) {
 /**
  * Validates the data in the HTTP request body to ensure the updated person is
  * valid.  That is, this function confirms that the updated person still refers
- * to valid/existing tags references, for example.
+ * to valid/existing tag references, for example.
  *
  * @param {Request}  req   The HTTP request object.
  * @param {Response} res   The HTTP response object.

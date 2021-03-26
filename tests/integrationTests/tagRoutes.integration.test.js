@@ -8,7 +8,8 @@
 const mongoose = require('mongoose');
 const request = require('supertest');
 const app = require('../../app');
-const seedData = require('../testHelpers/seedData');
+const miscHelper = require('../helpers/miscHelper');
+const seedData = require('../helpers/seedData');
 const Tag = require('../../models/tag');
 const Person = require('../../models/person');
 const Note = require('../../models/note');
@@ -142,7 +143,7 @@ describe('Create a valid, new tag.', () => {
     expect(res.body.data.isWorkout).toBe(tag.isWorkout);
     expect(res.body.data.isPerson).toBe(tag.isPerson);
     expect(res.body.data.description).toBe(tag.description);
-    expect(res.body.data.createdAt).toBeDefined();
+    expect(miscHelper.IsDateEqualish(new Date(res.body.data.createdAt), new Date())).toBe(true);
     expect(res.body.data.updatedAt).toBe(res.body.data.createdAt);
   });
 
@@ -157,7 +158,7 @@ describe('Create a new tag with a duplicate name', () => {
   let numTagsStart;
 
   test('The HTTP response status and body should indicate failure.', async () => {
-    const newTag = {
+    const tag = {
       name: 'Travelling',
       isType: false,
       isTag: true,
@@ -169,10 +170,10 @@ describe('Create a new tag with a duplicate name', () => {
     numTagsStart = await Tag.countDocuments();
     res = await request(app)
       .post('/api/tags')
-      .send(newTag);
+      .send(tag);
     expect(res.statusCode).toBe(422);
     expect(res.body.status).toBe('error');
-    expect(res.body.messages).toStrictEqual(["A tag called 'Travelling' already exists."]);
+    expect(res.body.messages).toStrictEqual([`A tag called '${tag.name}' already exists.`]);
   });
 
   test('The data in the response body should match the posted data.', async () => {
@@ -196,9 +197,8 @@ describe('Create an invalid, new tag.', () => {
   let res;
   let numTagsStart;
 
-  test('Cannot create a tag with missing fields', async () => {
+  test('The HTTP response status and body should indicate failure.', async () => {
     const newTag = {
-      name: 'Travelling',
       isType: '',
       isTag: 0,
       isWorkout: null,
@@ -212,6 +212,12 @@ describe('Create an invalid, new tag.', () => {
     expect(res.statusCode).toBe(422);
     expect(res.body.status).toBe('error');
     expect(res.body.messages).toStrictEqual([
+      {
+        value: '',
+        msg: 'A tag name is required; it must be between 1 and 25 characters long.',
+        param: 'name',
+        location: 'body'
+      },      
       {
         msg: 'Description is required but it can be an empty string.',
         param: 'description',
@@ -237,7 +243,7 @@ describe('Create an invalid, new tag.', () => {
       },
     ]);
     expect(res.body.data).toStrictEqual({
-      name: 'Travelling',
+      name: '',
       isType: '',
       isTag: '0',
       isWorkout: '',
@@ -256,12 +262,14 @@ describe('Update (put) an existing, unused tag with valid data.', () => {
   let res;
   let numTagsStart;
   let unusedTag;
-  let changedTag;
+  let tag;
 
   test('The HTTP response status and body should indicate success.', async () => {
-    unusedTag = seededTags.find((tag) => tag.name === 'Health');
+    //unusedTag = seededTags.find((tag) => tag.name === 'Health');
+    unusedTag = await Tag.find({ name: 'Health' });
+    [unusedTag] = unusedTag;
 
-    changedTag = {
+    tag = {
       id: unusedTag.id,
       name: `${unusedTag.name}_v2`,
       isType: !unusedTag.isType,
@@ -274,19 +282,20 @@ describe('Update (put) an existing, unused tag with valid data.', () => {
     numTagsStart = await Tag.countDocuments();
     res = await request(app)
       .put(`/api/tags/${unusedTag.id}`)
-      .send(changedTag);
+      .send(tag);
     expect(res.statusCode).toBe(200);
     expect(res.body.status).toBe('ok');
   });
 
-  test('The data in the response body should match the new tag.', async () => {
+  test('The data in the response body should match the updated tag.', async () => {
     expect(res.body.data._id).toBe(unusedTag.id);
-    expect(res.body.data.name).toBe(changedTag.name);
-    expect(res.body.data.isType).toBe(changedTag.isType);
-    expect(res.body.data.isTag).toBe(changedTag.isTag);
-    expect(res.body.data.isWorkout).toBe(changedTag.isWorkout);
-    expect(res.body.data.isPerson).toBe(changedTag.isPerson);
-    expect(res.body.data.description).toBe(changedTag.description);
+    expect(res.body.data.isType).toBe(tag.isType);
+    expect(res.body.data.isTag).toBe(tag.isTag);
+    expect(res.body.data.isWorkout).toBe(tag.isWorkout);
+    expect(res.body.data.isPerson).toBe(tag.isPerson);
+    expect(res.body.data.description).toBe(tag.description);
+    expect(miscHelper.IsDateEqualish(new Date(res.body.data.createdAt), new Date())).toBe(false);
+    expect(res.body.data.updatedAt > res.body.data.createdAt).toBe(true);
   });
 
   test('The changes to the updated tag persist via a call to GET.', async () => {
@@ -294,12 +303,14 @@ describe('Update (put) an existing, unused tag with valid data.', () => {
     expect(res.statusCode).toBe(200);
     expect(res.body.status).toBe('ok');
     expect(res.body.data._id).toBe(unusedTag.id);
-    expect(res.body.data.name).toBe(changedTag.name);
-    expect(res.body.data.isType).toBe(changedTag.isType);
-    expect(res.body.data.isTag).toBe(changedTag.isTag);
-    expect(res.body.data.isWorkout).toBe(changedTag.isWorkout);
-    expect(res.body.data.isPerson).toBe(changedTag.isPerson);
-    expect(res.body.data.description).toBe(changedTag.description);
+    expect(res.body.data.name).toBe(tag.name);
+    expect(res.body.data.isType).toBe(tag.isType);
+    expect(res.body.data.isTag).toBe(tag.isTag);
+    expect(res.body.data.isWorkout).toBe(tag.isWorkout);
+    expect(res.body.data.isPerson).toBe(tag.isPerson);
+    expect(res.body.data.description).toBe(tag.description);
+    expect(miscHelper.IsDateEqualish(new Date(res.body.data.createdAt), new Date())).toBe(false);
+    expect(res.body.data.updatedAt > res.body.data.createdAt).toBe(true);    
   });
 
   test('The number of tags should not have changed.', async () => {
