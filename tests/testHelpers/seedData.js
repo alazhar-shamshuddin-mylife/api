@@ -11,14 +11,31 @@ const Person = require('../../models/person');
 const Tag = require('../../models/tag');
 const Workout = require('../../models/workout');
 
+const nonExistentId = 'aaaaaaaaaaaaaaaaaaaaaaaa';
 let seededTags;
 let seededPeople;
 let seededNotes;
 
 /**
- * Seeds the MyLife database for integration testing purposes.
+ * Removes all MyLife records from the people, notes and tags collections to
+ * to provide a clean MyLife DB.
+ */
+async function removeData() {
+  await Person.deleteMany({});
+  await Note.deleteMany({});
+  await Tag.deleteMany({});
+}
+
+/**
+ * Seeds the MyLife database (the people, notes, and tags collections) for
+ * integration testing purposes.
+ *
+ * Note that this function first removes all existing records from the people,
+ * notes, and tags collections.
  */
 async function seedData() {
+  await removeData();
+
   const tags = [
     // Types
     {
@@ -124,25 +141,50 @@ async function seedData() {
   const tagExploring = await Tag.findOne({ name: 'Exploring' });
   const tagFamily = await Tag.findOne({ name: 'Family' });
 
-  const people = [{
-    tags: [tagFamily.id],
-    notes: [
-      {
-        note: 'This is the first example note.',
-        date: '2021-03-19T22:07:52.392-07:00',
-      },
-      {
-        note: 'This is the second (2nd) example note.',
-        date: '2021-03-19T22:07:52.392-07:00',
-      },
-    ],
-    photos: [],
-    firstName: 'John',
-    middleName: '',
-    lastName: 'Doe',
-    preferredName: '',
-    birthdate: '1990-01-01',
-  }];
+  const people = [
+    {
+      firstName: 'John',
+      middleName: '',
+      lastName: 'Doe',
+      preferredName: '',
+      birthdate: '1990-01-01',
+      googlePhotoUrl: '',
+      notes: [
+        {
+          note: 'This is the first example note.',
+          date: '2021-03-19T22:07:52.392-07:00',
+        },
+        {
+          note: 'This is the second (2nd) example note.',
+          date: '2021-03-19T22:07:52.392-07:00',
+        },
+      ],
+      photos: [],
+      picasaContactId: '',
+      tags: [tagFamily.id],
+    },
+    {
+      firstName: 'Janet',
+      middleName: 'Mary',
+      lastName: 'Doe',
+      preferredName: 'Jane',
+      birthdate: '1990-01-01',
+      googlePhotoUrl: '',
+      notes: [
+        {
+          note: 'This is the first example note.',
+          date: '2021-03-19T22:07:52.392-07:00',
+        },
+        {
+          note: 'This is the second (2nd) example note.',
+          date: '2021-03-19T22:07:52.392-07:00',
+        },
+      ],
+      photos: [],
+      picasaContactId: '',
+      tags: [tagFamily.id],
+    },
+  ];
   seededPeople = await Person.insertMany(people);
 
   const personJohnDoe = await Person.findOne({ firstName: 'John', lastName: 'Doe' });
@@ -218,5 +260,6 @@ async function seedData() {
 }
 
 module.exports = {
+  nonExistentId,
   seedData,
 };

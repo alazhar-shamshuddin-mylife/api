@@ -25,13 +25,13 @@ const Tag = require('../models/tag');
  * @return {Response} An HTTP response object with errors or the total number
  *                    of people in the database.
  */
- exports.count = (req, res) => {
+exports.count = (req, res) => {
   Person.estimatedDocumentCount((err, count) => {
     if (err) {
-      return res.status(500).json({ errors: [err] });
+      return res.status(500).json({ status: 'error', messages: [err] });
     }
 
-    return res.status(200).json({ data: count });
+    return res.status(200).json({ status: 'ok', messages: [], data: count });
   });
 };
 
@@ -75,6 +75,35 @@ exports.delete = (req, res) => {
 };
 
 /**
+ * Reads (gets) the specified person.
+ *
+ * Processes the API route GET /api/people/:id.
+ *
+ * @param {Request}  req  The HTTP request object.
+ * @param {Response} res  The HTTP response object.
+ *
+ * @return {Response} An HTTP response object with errors or the resulting
+ *                    person.
+ */
+exports.read = (req, res) => {
+  Person
+    .findById(req.params.id)
+    .populate('tags')
+    .exec((err, results) => {
+      if (err) {
+        return res.status(500).json({ status: 'error', messages: [err], data: req.params.id });
+      }
+
+      if (!results) {
+        const msg = `Could not find a person with ID '${req.params.id}'.`;
+        return res.status(404).json({ status: 'error', messages: [msg], data: req.params.id });
+      }
+
+      return res.status(200).json({ status: 'ok', messages: [], data: results });
+    });
+};
+
+/**
  * Reads (gets) all people.
  *
  * Processes the API route GET /api/people.
@@ -92,46 +121,10 @@ exports.readAll = (req, res) => {
     .populate('tags')
     .exec((err, results) => {
       if (err) {
-        const errors = [];
-        errors.push(err);
-        errors.push({ error: 'Encountered an error getting all people.' });
-        return res.status(500).json({ errors });
+        return res.status(500).json({ status: 'error', messages: [err] });
       }
 
-      return res.status(200).json({ data: results });
-    });
-};
-
-/**
- * Reads (gets) the specified person.
- *
- * Processes the API route GET /api/people/:id.
- *
- * @param {Request}  req  The HTTP request object.
- * @param {Response} res  The HTTP response object.
- *
- * @return {Response} An HTTP response object with errors or the resulting
- *                    person.
- */
-exports.read = (req, res) => {
-  Person
-    .findById(req.params.id)
-    .populate('tags')
-    .exec((err, results) => {
-      if (err) {
-        const errors = [];
-        errors.push(err);
-        errors.push({ error: `Encountered an error finding a person with ID '${req.params.id}'.` });
-        return res.status(500).json({ errors });
-      }
-
-      if (!results) {
-        return res.status(404).json({
-          errors: [{ error: `Could not find a person with ID '${req.params.id}'.` }],
-        });
-      }
-
-      return res.status(200).json({ data: results });
+      return res.status(200).json({ status: 'ok', messages: [], data: results });
     });
 };
 
@@ -178,16 +171,10 @@ function createPerson(req, res) {
 
   person.save((err) => {
     if (err) {
-      return res.status(500).json({
-        errors: [err],
-        data: req.body,
-      });
+      return res.status(500).json({ status: 'error', messages: [err], data: req.body });
     }
 
-    return res.status(201).json({
-      message: 'New person created!',
-      data: person,
-    });
+    return res.status(201).json({ status: 'ok', messages: [], data: person });
   });
 }
 

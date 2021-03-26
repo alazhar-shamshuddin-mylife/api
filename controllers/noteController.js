@@ -611,7 +611,7 @@ async function validateReqBody(req, res, next) {
     default:
       return res.status(422).json({
         status: 'error',
-        messages: [ `Invalid note type '${req.body.type}'.` ],
+        messages: [`Invalid note type '${req.body.type}'.`],
         data: req.body,
       });
   }

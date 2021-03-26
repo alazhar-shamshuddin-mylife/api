@@ -161,7 +161,7 @@ function createTag(req, res) {
  *
  * @return {Response} An HTTP response object with errors or the deleted tag.
  */
- function deleteTag(req, res) {
+function deleteTag(req, res) {
   Tag
     .findByIdAndRemove(req.params.id)
     .exec((err, results) => {

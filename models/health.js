@@ -8,7 +8,7 @@ const healthSchema = new Schema({});
 healthSchema
   .virtual('url')
   .get(function() {
-     return `/note/health/${this._id}`;
+     return `/notes/health/${this._id}`;
   });
 
 module.exports = Note.discriminator('Health', healthSchema);

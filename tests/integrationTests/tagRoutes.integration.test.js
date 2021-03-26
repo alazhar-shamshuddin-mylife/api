@@ -10,6 +10,8 @@ const request = require('supertest');
 const app = require('../../app');
 const seedData = require('../testHelpers/seedData');
 const Tag = require('../../models/tag');
+const Person = require('../../models/person');
+const Note = require('../../models/note');
 
 let seededTags;
 
@@ -53,6 +55,7 @@ describe('Get all existing tags.', () => {
 
   test('The data in the response body should match the seeded tags.', async () => {
     const seededTagsSorted = seededTags.sort((a, b) => (a.name > b.name) - (a.name < b.name));
+
     seededTagsSorted.forEach((tag, index) => {
       expect(res.body.data[index]._id).toBe(tag._id.toString());
       expect(res.body.data[index].name).toBe(tag.name);
@@ -61,53 +64,55 @@ describe('Get all existing tags.', () => {
       expect(res.body.data[index].isWorkout).toBe(tag.isWorkout);
       expect(res.body.data[index].isPerson).toBe(tag.isPerson);
       expect(res.body.data[index].description).toBe(tag.description);
-      expect(res.body.data[index].createdAt).toBeDefined();
-      expect(res.body.data[index].updatedAt).toBeDefined();
+      expect(JSON.stringify(res.body.data[index].createdAt)).toBe(JSON.stringify(tag.createdAt));
+      expect(JSON.stringify(res.body.data[index].updatedAt)).toBe(JSON.stringify(tag.updatedAt));
     });
   });
 });
 
 describe('Get an existing tag.', () => {
+  let tag;
   let res;
 
   test('The HTTP response status and body should indicate success.', async () => {
-    res = await request(app).get(`/api/tags/${seededTags[0].id}`);
+    [tag] = seededTags;
+
+    res = await request(app).get(`/api/tags/${tag.id}`);
     expect(res.statusCode).toBe(200);
     expect(res.body.status).toBe('ok');
     expect(res.body.messages).toStrictEqual([]);
   });
 
   test('The data in the response body should match the seeded tag.', async () => {
-    expect(res.body.data._id).toBe(seededTags[0]._id.toString());
-    expect(res.body.data.name).toBe(seededTags[0].name);
-    expect(res.body.data.isType).toBe(seededTags[0].isType);
-    expect(res.body.data.isTag).toBe(seededTags[0].isTag);
-    expect(res.body.data.isWorkout).toBe(seededTags[0].isWorkout);
-    expect(res.body.data.isPerson).toBe(seededTags[0].isPerson);
-    expect(res.body.data.description).toBe(seededTags[0].description);
-    expect(res.body.data.createdAt).toBeDefined();
-    expect(res.body.data.updatedAt).toBeDefined();
+    expect(res.body.data._id).toBe(tag._id.toString());
+    expect(res.body.data.name).toBe(tag.name);
+    expect(res.body.data.isType).toBe(tag.isType);
+    expect(res.body.data.isTag).toBe(tag.isTag);
+    expect(res.body.data.isWorkout).toBe(tag.isWorkout);
+    expect(res.body.data.isPerson).toBe(tag.isPerson);
+    expect(res.body.data.description).toBe(tag.description);
+    expect(JSON.stringify(res.body.data.createdAt)).toBe(JSON.stringify(tag.createdAt));
+    expect(JSON.stringify(res.body.data.updatedAt)).toBe(JSON.stringify(tag.updatedAt));
   });
 });
 
 describe('Get a non-existing tag.', () => {
-  const nonExistentTagId = 'aaaaaaaaaaaaaaaaaaaaaaaa';
   let res;
 
   test('The HTTP response status and body should indicate error.', async () => {
-    res = await request(app).get(`/api/tags/${nonExistentTagId}`);
+    res = await request(app).get(`/api/tags/${seedData.nonExistentId}`);
     expect(res.statusCode).toBe(404);
     expect(res.body.status).toBe('error');
-    expect(res.body.messages).toStrictEqual([`Could not find a note with ID '${nonExistentTagId}'.`]);
+    expect(res.body.messages).toStrictEqual([`Could not find a note with ID '${seedData.nonExistentId}'.`]);
   });
 
   test('The data in the response body should match the non-existent tag ID.', async () => {
-    expect(res.body.data).toBe(nonExistentTagId);
+    expect(res.body.data).toBe(seedData.nonExistentId);
   });
 });
 
 describe('Create a valid, new tag.', () => {
-  const newTag = {
+  const tag = {
     name: 'Travelling',
     isType: false,
     isTag: true,
@@ -121,21 +126,24 @@ describe('Create a valid, new tag.', () => {
 
   test('The HTTP response status and body should indicate success.', async () => {
     numTagsStart = await Tag.countDocuments();
+
     res = await request(app)
       .post('/api/tags')
-      .send(newTag);
+      .send(tag);
     expect(res.statusCode).toBe(201);
     expect(res.body.status).toBe('ok');
     expect(res.body.messages).toStrictEqual([]);
   });
 
   test('The data in the response body should match the new tag.', async () => {
-    expect(res.body.data.name).toBe(newTag.name);
-    expect(res.body.data.isType).toBe(newTag.isType);
-    expect(res.body.data.isTag).toBe(newTag.isTag);
-    expect(res.body.data.isWorkout).toBe(newTag.isWorkout);
-    expect(res.body.data.isPerson).toBe(newTag.isPerson);
-    expect(res.body.data.description).toBe(newTag.description);
+    expect(res.body.data.name).toBe(tag.name);
+    expect(res.body.data.isType).toBe(tag.isType);
+    expect(res.body.data.isTag).toBe(tag.isTag);
+    expect(res.body.data.isWorkout).toBe(tag.isWorkout);
+    expect(res.body.data.isPerson).toBe(tag.isPerson);
+    expect(res.body.data.description).toBe(tag.description);
+    expect(res.body.data.createdAt).toBeDefined();
+    expect(res.body.data.updatedAt).toBe(res.body.data.createdAt);
   });
 
   test('The number of tags should increase by one.', async () => {
@@ -371,9 +379,6 @@ describe('Update (put) an existing tag with a duplicate name.', () => {
 
     numTagsStart = await Tag.countDocuments();
 
-    res = await request(app).get('/api/tags');
-    console.log(res.body);
-
     res = await request(app)
       .put(`/api/tags/${existingTag1.id}`)
       .send(changedTag);
@@ -563,6 +568,7 @@ describe('Update (put) an existing tag that breaks referential integrity with pe
 
   test('The HTTP response status and body should indicate error.', async () => {
     usedTag = seededTags.find((tag) => tag.name === 'Family');
+    const numReferences = await Person.find({ tags: usedTag._id }).count();
 
     changedTag = {
       id: `${usedTag.id}`,
@@ -579,7 +585,7 @@ describe('Update (put) an existing tag that breaks referential integrity with pe
       .send(changedTag);
     expect(res.statusCode).toBe(422);
     expect(res.body.status).toBe('error');
-    expect(res.body.messages).toStrictEqual([`Cannot update tag with ID '${changedTag.id}' without breaking referential integrity.  The tag is referenced in: 1 people.tags field(s).`]);
+    expect(res.body.messages).toStrictEqual([`Cannot update tag with ID '${changedTag.id}' without breaking referential integrity.  The tag is referenced in: ${numReferences} people.tags field(s).`]);
   });
 
   test('The data in the response body should match the requested tag ID.', async () => {
@@ -588,7 +594,6 @@ describe('Update (put) an existing tag that breaks referential integrity with pe
 });
 
 describe('Update (put) a non-existing tag with valid data.', () => {
-  const nonExistentTagId = 'aaaaaaaaaaaaaaaaaaaaaaaa';
   let res;
   let unusedTag;
   let changedTag;
@@ -597,7 +602,7 @@ describe('Update (put) a non-existing tag with valid data.', () => {
     unusedTag = seededTags.find((tag) => tag.name === 'Health');
 
     changedTag = {
-      id: nonExistentTagId,
+      id: seedData.nonExistentId,
       name: `${unusedTag.name}`,
       isType: unusedTag.isType,
       isTag: unusedTag.isTag,
@@ -607,11 +612,11 @@ describe('Update (put) a non-existing tag with valid data.', () => {
     };
 
     res = await request(app)
-      .put(`/api/tags/${nonExistentTagId}`)
+      .put(`/api/tags/${seedData.nonExistentId}`)
       .send(changedTag);
     expect(res.statusCode).toBe(422);
     expect(res.body.status).toBe('error');
-    expect(res.body.messages).toStrictEqual([`A tag with ID '${nonExistentTagId}' does not exist.`]);
+    expect(res.body.messages).toStrictEqual([`A tag with ID '${seedData.nonExistentId}' does not exist.`]);
   });
 
   test('The data in the response body should match the requested tag ID.', async () => {
@@ -628,7 +633,6 @@ describe('Update (put) a non-existing tag with valid data.', () => {
 });
 
 describe('Update (put) a non-existing tag with invalid data.', () => {
-  const nonExistentTagId = 'aaaaaaaaaaaaaaaaaaaaaaaa';
   let res;
   let unusedTag;
   let changedTag;
@@ -637,14 +641,14 @@ describe('Update (put) a non-existing tag with invalid data.', () => {
     unusedTag = seededTags.find((tag) => tag.name === 'Health');
 
     changedTag = {
-      id: nonExistentTagId,
+      id: seedData.nonExistentId,
       name: `${unusedTag.name}`,
       isType: 'isType',
       isTag: 123456789,
     };
 
     res = await request(app)
-      .put(`/api/tags/${nonExistentTagId}`)
+      .put(`/api/tags/${seedData.nonExistentId}`)
       .send(changedTag);
     expect(res.statusCode).toBe(422);
     expect(res.body.status).toBe('error');
@@ -796,11 +800,12 @@ describe('Delete an existing tag that breaks referential integrity with people t
 
   test('The HTTP response status and body should indicate error.', async () => {
     usedTag = seededTags.find((tag) => tag.name === 'Family');
+    const numReferences = await Person.find({ tags: usedTag._id }).count();
     numTagsStart = await Tag.countDocuments();
     res = await request(app).delete(`/api/tags/${usedTag.id}`);
     expect(res.statusCode).toBe(422);
     expect(res.body.status).toBe('error');
-    expect(res.body.messages).toStrictEqual([`Cannot delete tag with ID '${usedTag.id}' without breaking referential integrity.  The tag is referenced in: 1 people.tags field(s).`]);
+    expect(res.body.messages).toStrictEqual([`Cannot delete tag with ID '${usedTag.id}' without breaking referential integrity.  The tag is referenced in: ${numReferences} people.tags field(s).`]);
   });
 
   test('The data in the response body should match the requested tag ID.', async () => {
@@ -814,20 +819,19 @@ describe('Delete an existing tag that breaks referential integrity with people t
 });
 
 describe('Delete a non-existing tag.', () => {
-  const nonExistentTagId = 'aaaaaaaaaaaaaaaaaaaaaaaa';
   let res;
   let numTagsStart;
 
   test('The HTTP response status and body should indicate error.', async () => {
     numTagsStart = await Tag.countDocuments();
-    res = await request(app).delete(`/api/tags/${nonExistentTagId}`);
+    res = await request(app).delete(`/api/tags/${seedData.nonExistentId}`);
     expect(res.statusCode).toBe(404);
     expect(res.body.status).toBe('error');
-    expect(res.body.messages).toStrictEqual([`Could not find a tag with ID '${nonExistentTagId}'.`]);
+    expect(res.body.messages).toStrictEqual([`Could not find a tag with ID '${seedData.nonExistentId}'.`]);
   });
 
   test('The data in the response body should match the non-existent tag ID.', async () => {
-    expect(res.body.data).toBe(nonExistentTagId);
+    expect(res.body.data).toBe(seedData.nonExistentId);
   });
 
   test('The number of tags should not have changed.', async () => {
