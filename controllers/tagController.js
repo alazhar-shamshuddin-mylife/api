@@ -484,7 +484,12 @@ function validateReqDataForUpdate(req, res, next) {
     }
 
     if (!results) {
-      const msg = 'Unexpected error: could not any data.';
+      const msg = 'Unexpected error: could not find any data.';
+      return res.status(500).json({ status: 'error', messages: [msg], data: req.body });
+    }
+
+    if (results.tag.length > 1) {
+      const msg = `There are '${results.tag.length}' tags with ID '${req.params.id}'; there should be only one.`;
       return res.status(500).json({ status: 'error', messages: [msg], data: req.body });
     }
 
@@ -494,12 +499,8 @@ function validateReqDataForUpdate(req, res, next) {
       return res.status(500).json({ status: 'error', messages: [msg], data: req.body });
     }
 
-    if (results.tag.length > 1) {
-      const msg = `There are '${results.tag.length}' tags with ID '${req.params.id}' where one was expected.`;
-      return res.status(500).json({ status: 'error', messages: [msg], data: req.body });
-    }
-
-    if (results.tagByName.length === 1 && results.tagByName[0]._id.toString() !== req.params.id) {
+    if (results.tagByName.length === 1
+      && results.tagByName[0]._id.toString() !== req.params.id) {
       const msg = `A tag called '${req.body.name}' already exists.`;
       return res.status(422).json({ status: 'error', messages: [msg], data: req.body });
     }
@@ -510,7 +511,6 @@ function validateReqDataForUpdate(req, res, next) {
     }
 
     req.queryResults = results;
-
     return next();
   });
 }

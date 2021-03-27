@@ -245,7 +245,7 @@ async function validateReqBody(req, res, next) {
     .isLength({ max: 25 })
     .run(req);
 
-  await body('birthdate', 'Birthdate must be a valid date.')
+  await body('birthdate', 'Birthdate must be a valid date if it is specified.')
     .optional()
     .trim()
     .isDate()
@@ -260,7 +260,7 @@ async function validateReqBody(req, res, next) {
   await body('picasaContactId', 'A Picasa Contact ID is required; it can be an empty string or a 16-character ID.')
     .exists()
     .trim()
-    .custom((value) => value.length <= 16)
+    .custom((value) => value.length === 0 || value.length === 16)
     .run(req);
 
   await body('tags')
@@ -309,8 +309,8 @@ async function validateReqBody(req, res, next) {
   const validationErrors = validationResult(req);
 
   if (!validationErrors.isEmpty()) {
-    return res.status(422).json({ 
-      status: 'error', 
+    return res.status(422).json({
+      status: 'error',
       messages: validationErrors.array(),
       data: req.body,
     });
@@ -400,47 +400,46 @@ function validateReqDataForUpdate(req, res, next) {
     },
   },
   (err, results) => {
-    const errors = [];
-
     if (err) {
-      errors.push(err);
+      return res.status(500).json({ status: 'error', messages: [err], data: req.body });
+    }
+
+    if (!results) {
+      const msg = 'Unexpected error: could not find any data.';
+      return res.status(500).json({ status: 'error', messages: [msg], data: req.body });
+    }
+
+    if (results.people.length > 1) {
+      const msg = `There are '${results.people.length}' people with ID '${req.params.id}'; there should be only one.`;
+      return res.status(500).json({ status: 'error', messages: [msg], data: req.body });
     }
 
     // Check that the user supplied person name does not already exist.
     if (results.peopleByName.length > 1) {
-      errors.push({ error: `There are '${results.peopleByName.length}' people with the name '${req.body.firstName} ${req.body.middleName} ${req.body.lastName}' ; there should be only one.` });
+      const msg = `There are '${results.peopleByName.length}' people with the name '${req.body.firstName} ${req.body.middleName} ${req.body.lastName}'; there should be only one.`;
+      return res.status(500).json({ status: 'error', messages: [msg], data: req.body });
     }
 
     if (results.peopleByName.length === 1
       && results.peopleByName[0]._id.toString() !== req.params.id) {
-      errors.push({ error: `A person called '${results.peopleByName[0].name}' already exists.` });
+      const msg = `A person called '${results.peopleByName[0].name}' already exists.`;
+      return res.status(422).json({ status: 'error', messages: [msg], data: req.body });
     }
 
     if (results.people.length === 0) {
-      errors.push({ error: `A person with ID '${req.params.id}' does not exist.` });
-    }
-
-    if (results.people.length > 1) {
-      errors.push({ error: `There are '${results.people.length}' tags with ID '${req.params.id}' where one was expected.` });
+      const msg = `A person with ID '${req.params.id}' does not exist.`;
+      return res.status(422).json({ status: 'error', messages: [msg], data: req.body });
     }
 
     // Check that all user supplied tag names are valid (i.e., they exist
     // in the tags database collection).
     if (!arrayHelper.areNamesValid(results.tags, req.body.tags, false)) {
       const invalidTags = arrayHelper.getMissingItems(results.tags, req.body.tags);
-      errors.push({ error: `Invalid tag(s): ${invalidTags.join(', ')}` });
-    }
-
-    if (errors.length > 0) {
-      return res.status(500).json({
-        errors,
-        body: req.body,
-        function: 'validateReqDataForUpdate',
-      });
+      const msg = `Invalid tag(s): ${invalidTags.join(', ')}.`;
+      return res.status(422).json({ status: 'error', messages: [msg], data: req.body });
     }
 
     req.queryResults = results;
-
     return next();
   });
 }
