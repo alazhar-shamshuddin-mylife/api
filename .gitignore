@@ -3,6 +3,7 @@
 #-------------------------------------------------------------------------------
 
 # Don't commit into git the following files and folders:
+globalConfig.json
 /node_modules
 
 # Don't ignore .gitignore (this file).
