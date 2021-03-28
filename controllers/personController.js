@@ -7,6 +7,7 @@
 const { body, validationResult } = require('express-validator');
 const async = require('async');
 const arrayHelper = require('../helpers/arrayHelper');
+const Note = require('../models/note');
 const Person = require('../models/person');
 const Tag = require('../models/tag');
 
@@ -51,13 +52,23 @@ exports.create = [
  * Deletes the specified person.
  *
  * Processes the API route DELETE /api/people/:id.
+ */
+exports.delete = [
+  validateReferentialIntegrityForDelete,
+  deletePerson,
+];
+
+/**
+ * Deletes the specified person.
+ *
+ * Processes the API route DELETE /api/people/:id.
  *
  * @param {Request}  req  The HTTP request object.
  * @param {Response} res  The HTTP response object.
  *
  * @return {Response} An HTTP response object with errors or the deleted person.
  */
-exports.delete = (req, res) => {
+exports.deleteX = (req, res) => {
   Person
     .findByIdAndRemove(req.params.id)
     .exec((err, results) => {
@@ -179,6 +190,31 @@ function createPerson(req, res) {
 }
 
 /**
+ * Deletes the specified person.
+ *
+ * @param {Request}  req  The HTTP request object.
+ * @param {Response} res  The HTTP response object.
+ *
+ * @return {Response} An HTTP response object with errors or the deleted person.
+ */
+function deletePerson(req, res) {
+  Person
+    .findByIdAndRemove(req.params.id)
+    .exec((err, results) => {
+      if (err) {
+        return res.status(500).json({ status: 'error', messages: [err], data: req.params.id });
+      }
+
+      if (!results) {
+        const msg = `Could not find a person with ID '${req.params.id}'.`;
+        return res.status(404).json({ status: 'error', messages: [msg], data: req.params.id });
+      }
+
+      return res.status(200).json({ status: 'ok', messages: [], data: results });
+    });
+}
+
+/**
  * Updates an existing person as specified in the HTTP request object.
  *
  * @param {Request}  req  The HTTP request object.
@@ -210,6 +246,47 @@ function updatePerson(req, res) {
     }
 
     return res.status(200).json({ status: 'ok', messages: [], data: person });
+  });
+}
+
+/**
+ * Validates that the specified person can be deleted without violating
+ * referential integrity.  In other words, a person can only be deleted if
+ * they are not referenced in any Note.people models/fields (or notes.people
+ * collection/fields).
+ *
+ * @param {Request}  req   The HTTP request object.
+ * @param {Response} res   The HTTP response object.
+ * @param {@todo}    next  An implicit pointer to the next Express middleware
+ *                         function that should be called.
+ *
+ * @return {@todo} An HTTP error response or next middleware function.
+ */
+function validateReferentialIntegrityForDelete(req, res, next) {
+  async.parallel({
+    notes: (callback) => {
+      Note.find({ people: req.params.id }).countDocuments().exec(callback);
+    },
+  },
+  (err, results) => {
+    if (err) {
+      return res.status(500).json({ status: 'error', messages: [err], data: req.params.id });
+    }
+
+    if (!results) {
+      const msg = 'Unexpected error: the database query returned no results.';
+      return res.status(500).json({ status: 'error', messages: [msg], data: req.params.id });
+    }
+
+    if (results.notes > 0) {
+      let msg = `Cannot delete person with ID '${req.params.id}' without breaking referential integrity.`;
+      msg = `${msg}  The person is referenced in: ${results.notes} notes.people field(s).`;
+      return res.status(422).json({ status: 'error', messages: [msg], data: req.params.id });
+    }
+
+    // Proceed to the next function in the array of functions that defines
+    // exports.delete.
+    return next();
   });
 }
 

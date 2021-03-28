@@ -7,7 +7,6 @@
 
 const mongoose = require('mongoose');
 const request = require('supertest');
-const util = require('util');
 const app = require('../../app');
 const miscHelper = require('../helpers/miscHelper');
 const seedData = require('../helpers/seedData');
@@ -169,7 +168,7 @@ describe('Create a valid, new person.', () => {
     expect(res.body.data.preferredName).toBe(person.preferredName);
     expect(new Date(res.body.data.birthdate)).toStrictEqual(new Date(person.birthdate));
     expect(res.body.data.googlePhotoUrl).toBe(person.googlePhotoUrl);
-    expect(miscHelper.areNotesEqual(res.body.data.notes, person.notes)).toBe(true);
+    expect(miscHelper.arePersonNotesEqual(res.body.data.notes, person.notes)).toBe(true);
     expect(res.body.data.picasaContactId).toBe(person.picasaContactId);
     expect(JSON.stringify(res.body.data.photos)).toBe(JSON.stringify(person.photos));
     expect(miscHelper.IsDateEqualish(new Date(res.body.data.createdAt), new Date())).toBe(true);
@@ -402,8 +401,7 @@ describe('Update (put) an existing person with valid properties.', () => {
   let person;
 
   test('The HTTP response status and body should indicate success.', async () => {
-    existingPerson = await Person.find({ firstName: 'Michael', lastName: 'Smith' });
-    [existingPerson] = existingPerson;
+    existingPerson = await Person.findOne({ firstName: 'Michael', lastName: 'Smith' });
 
     person = {
       firstName: `${existingPerson.firstName}_v2`,
@@ -438,7 +436,7 @@ describe('Update (put) an existing person with valid properties.', () => {
     expect(res.body.data.preferredName).toBe(person.preferredName);
     expect(new Date(res.body.data.birthdate)).toStrictEqual(new Date(person.birthdate));
     expect(res.body.data.googlePhotoUrl).toBe(person.googlePhotoUrl);
-    expect(miscHelper.areNotesEqual(res.body.data.notes, person.notes)).toBe(true);
+    expect(miscHelper.arePersonNotesEqual(res.body.data.notes, person.notes)).toBe(true);
     expect(res.body.data.picasaContactId).toBe(person.picasaContactId);
     expect(JSON.stringify(res.body.data.photos)).toBe(JSON.stringify(person.photos));
     expect(miscHelper.IsDateEqualish(new Date(res.body.data.createdAt), new Date())).toBe(false);
@@ -460,7 +458,7 @@ describe('Update (put) an existing person with valid properties.', () => {
     expect(res.body.data.preferredName).toBe(person.preferredName);
     expect(new Date(res.body.data.birthdate)).toStrictEqual(new Date(person.birthdate));
     expect(res.body.data.googlePhotoUrl).toBe(person.googlePhotoUrl);
-    expect(miscHelper.areNotesEqual(res.body.data.notes, person.notes)).toBe(true);
+    expect(miscHelper.arePersonNotesEqual(res.body.data.notes, person.notes)).toBe(true);
     expect(res.body.data.picasaContactId).toBe(person.picasaContactId);
     expect(JSON.stringify(res.body.data.photos)).toBe(JSON.stringify(person.photos));
     expect(miscHelper.IsDateEqualish(new Date(res.body.data.createdAt), new Date())).toBe(false);
@@ -486,10 +484,8 @@ describe('Update (put) an existing person with a duplicate name.', () => {
   let person;
 
   test('The HTTP response status and body should indicate failure.', async () => {
-    existingPerson1 = await Person.find({ firstName: 'John', middleName: '', lastName: 'Doe' });
-    existingPerson2 = await Person.find({ firstName: 'Janet', middleName: 'Mary', lastName: 'Doe' });
-    [existingPerson1] = existingPerson1;
-    [existingPerson2] = existingPerson2;
+    existingPerson1 = await Person.findOne({ firstName: 'John', lastName: 'Doe' });
+    existingPerson2 = await Person.findOne({ firstName: 'Janet', lastName: 'Doe' });
 
     person = {
       id: existingPerson1.id,
@@ -531,8 +527,7 @@ describe('Update (put) an existing person with an invalid tag.', () => {
   let person;
 
   test('The HTTP response status and body should indicate failure.', async () => {
-    existingPerson = await Person.find({ firstName: 'John', lastName: 'Doe' });
-    [existingPerson] = existingPerson;
+    existingPerson = await Person.findOne({ firstName: 'John', lastName: 'Doe' });
 
     const tmpTags = await Tag.find({ isPerson: false }, 'name').limit(2);
     const nonPersonTags = tmpTags.map((tag) => tag.name);
@@ -577,8 +572,7 @@ describe('Update (put) an existing person with other invalid properties.', () =>
   let person;
 
   test('The HTTP response status and body should indicate failure.', async () => {
-    existingPerson = await Person.find({ firstName: 'John', lastName: 'Doe' });
-    [existingPerson] = existingPerson;
+    existingPerson = await Person.findOne({ firstName: 'John', lastName: 'Doe' });
 
     person = {
       firstName: undefined,
@@ -680,8 +674,7 @@ describe('Update (put) a non-existing person with valid data.', () => {
   let person;
 
   test('The HTTP response status and body should indicate error.', async () => {
-    existingPerson = await Person.find({ firstName: 'Janet', lastName: 'Doe' });
-    [existingPerson] = existingPerson;
+    existingPerson = await Person.findOne({ firstName: 'Janet', lastName: 'Doe' });
 
     person = {
       firstName: `${existingPerson.firstName}_v2`,
@@ -726,8 +719,7 @@ describe('Update (put) a non-existing person with invalid data.', () => {
   let person;
 
   test('The HTTP response status and body should indicate error.', async () => {
-    existingPerson = await Person.find({ firstName: 'Janet', lastName: 'Doe' });
-    [existingPerson] = existingPerson;
+    existingPerson = await Person.findOne({ firstName: 'Janet', lastName: 'Doe' });
 
     person = {
       firstName: `${existingPerson.firstName}_v2`,
@@ -771,8 +763,7 @@ describe('Delete an existing, unused person.', () => {
   let person;
 
   test('The HTTP response status and body should indicate success.', async () => {
-    person = await Person.find({ firstName: 'Janet', lastName: 'Doe' });
-    [person] = person;
+    person = await Person.findOne({ firstName: 'Janet', lastName: 'Doe' });
 
     numPeopleStart = await Person.countDocuments();
 
@@ -794,24 +785,50 @@ describe('Delete an existing, unused person.', () => {
 describe('Delete an existing person that breaks referential integrity with a note.', () => {
   let res;
   let numPeopleStart;
-  let tag;
+  let person;
 
   test('The HTTP response status and body should indicate error.', async () => {
-    //tag = seededTags.find((tag) => tag.name === 'Family');
-    //const numReferences = await Person.find({ tags: tag._id }).countDocuments();
-    const note = Note.find({ people: is not null}).limit(1);
-    [note] = note;
+    // Find a person who is referenced in one or more notes.  We are using a
+    // query instead of hard coding a person to make the test cases more
+    // resilient to change.
+    person = await Person.aggregate([
+      {
+        $lookup: {
+          from: 'notes',
+          foreignField: 'people',
+          localField: '_id',
+          as: 'notes',
+        },
+      },
+      {
+        $match: {
+          notes: { $not: { $size: 0 } },
+        },
+      },
+      {
+        $addFields: {
+          id: '$_id',
+        },
+      },
+      {
+        $limit: 1,
+      },
+    ]);
+
+    [person] = person;
+    const numReferences = person.notes.length;
 
     numPeopleStart = await Person.countDocuments();
 
-    res = await request(app).delete(`/api/people/${tag.id}`);
+    res = await request(app).delete(`/api/people/${person.id}`);
     expect(res.statusCode).toBe(422);
     expect(res.body.status).toBe('error');
-    expect(res.body.messages).toStrictEqual([`Cannot delete person with ID '${person.id}' without breaking referential integrity.  The tag is referenced in: ${numReferences} notes.people field(s).`]);
+    expect(res.body.messages).toStrictEqual([`Cannot delete person with ID '${person.id}' without breaking referential integrity.  The person is referenced in: ${numReferences} notes.people field(s).`]);
+    expect(1).toBe(1);
   });
 
   test('The data in the response body should match the requested person ID.', async () => {
-    expect(res.body.data).toBe(tag.id);
+    expect(res.body.data).toBe(person.id.toString());
   });
 
   test('The number of people should not have changed.', async () => {
