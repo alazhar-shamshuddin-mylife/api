@@ -268,8 +268,7 @@ describe('Update (put) an existing, unused tag with valid properties.', () => {
   let tag;
 
   test('The HTTP response status and body should indicate success.', async () => {
-    unusedTag = await Tag.find({ name: 'Health' });
-    [unusedTag] = unusedTag;
+    unusedTag = await Tag.findOne({ name: 'Health' });
 
     tag = {
       id: unusedTag.id,
@@ -328,7 +327,7 @@ describe('Update (put) an existing, used tag with valid properties.', () => {
   let tag;
 
   test('The HTTP response status and body should indicate success.', async () => {
-    unusedTag = seededTags.find((tag) => tag.name === 'Biking');
+    unusedTag = await Tag.findOne({ name: 'Biking' });
 
     tag = {
       id: unusedTag.id,
@@ -390,8 +389,8 @@ describe('Update (put) an existing tag with a duplicate name.', () => {
   let tag;
 
   test('The HTTP response status and body should indicate failure.', async () => {
-    existingTag1 = seededTags.find((tag) => tag.name === 'Hike');
-    existingTag2 = seededTags.find((tag) => tag.name === 'Family');
+    existingTag1 = await Tag.findOne({ name: 'Hike' });
+    existingTag2 = await Tag.findOne({ name: 'Family' });
 
     tag = {
       id: existingTag1.id,
@@ -438,8 +437,7 @@ describe('Update (put) an existing tag with other invalid properties.', () => {
   let tag;
 
   test('The HTTP response status and body should indicate error.', async () => {
-    existingTag = await Tag.find({ name: 'Life' });
-    [existingTag] = existingTag;
+    existingTag = await Tag.findOne({ name: 'Life' });
 
     tag = {
       id: existingTag.id,
@@ -507,12 +505,12 @@ describe('Update (put) an existing tag that breaks referential integrity with no
   let res;
   let numTagsStart;
   let usedTag;
-  let changedTag;
+  let tag;
 
   test('The HTTP response status and body should indicate error.', async () => {
-    usedTag = seededTags.find((tag) => tag.name === 'Bike Ride');
+    usedTag = await Tag.findOne({ name: 'Bike Ride' });
 
-    changedTag = {
+    tag = {
       id: `${usedTag.id}`,
       name: `${usedTag.name}_v2`,
       isType: !usedTag.isType,
@@ -525,11 +523,11 @@ describe('Update (put) an existing tag that breaks referential integrity with no
     numTagsStart = await Tag.countDocuments();
 
     res = await request(app)
-      .put(`/api/tags/${changedTag.id}`)
-      .send(changedTag);
+      .put(`/api/tags/${tag.id}`)
+      .send(tag);
     expect(res.statusCode).toBe(422);
     expect(res.body.status).toBe('error');
-    expect(res.body.messages).toStrictEqual([`Cannot update tag with ID '${changedTag.id}' without breaking referential integrity.  The tag is referenced in: 1 notes.type field(s).`]);
+    expect(res.body.messages).toStrictEqual([`Cannot update tag with ID '${tag.id}' without breaking referential integrity.  The tag is referenced in: 1 notes.type field(s).`]);
   });
 
   test('The data in the response body should match the request.', async () => {
@@ -546,12 +544,12 @@ describe('Update (put) an existing tag that breaks referential integrity with no
   let res;
   let numTagsStart;
   let usedTag;
-  let changedTag;
+  let tag;
 
   test('The HTTP response status and body should indicate error.', async () => {
-    usedTag = seededTags.find((tag) => tag.name === 'Biking');
+    usedTag = await Tag.findOne({ name: 'Exploring' });
 
-    changedTag = {
+    tag = {
       id: `${usedTag.id}`,
       name: `${usedTag.name}_v2`,
       isType: !usedTag.isType,
@@ -564,11 +562,11 @@ describe('Update (put) an existing tag that breaks referential integrity with no
     numTagsStart = await Tag.countDocuments();
 
     res = await request(app)
-      .put(`/api/tags/${changedTag.id}`)
-      .send(changedTag);
+      .put(`/api/tags/${tag.id}`)
+      .send(tag);
     expect(res.statusCode).toBe(422);
     expect(res.body.status).toBe('error');
-    expect(res.body.messages).toStrictEqual([`Cannot update tag with ID '${changedTag.id}' without breaking referential integrity.  The tag is referenced in: 1 notes.tags field(s).`]);
+    expect(res.body.messages).toStrictEqual([`Cannot update tag with ID '${tag.id}' without breaking referential integrity.  The tag is referenced in: 1 notes.tags field(s).`]);
   });
 
   test('The data in the response body should match the request.', async () => {
@@ -585,12 +583,12 @@ describe('Update (put) an existing tag that breaks referential integrity with wo
   let res;
   let numTagsStart;
   let usedTag;
-  let changedTag;
+  let tag;
 
   test('The HTTP response status and body should indicate error.', async () => {
-    usedTag = seededTags.find((tag) => tag.name === 'Grouse Grind');
+    usedTag = await Tag.findOne({ name: 'Grouse Grind' });
 
-    changedTag = {
+    tag = {
       id: `${usedTag.id}`,
       name: `${usedTag.name}_v2`,
       isType: !usedTag.isType,
@@ -603,11 +601,11 @@ describe('Update (put) an existing tag that breaks referential integrity with wo
     numTagsStart = await Tag.countDocuments();
 
     res = await request(app)
-      .put(`/api/tags/${changedTag.id}`)
-      .send(changedTag);
+      .put(`/api/tags/${tag.id}`)
+      .send(tag);
     expect(res.statusCode).toBe(422);
     expect(res.body.status).toBe('error');
-    expect(res.body.messages).toStrictEqual([`Cannot update tag with ID '${changedTag.id}' without breaking referential integrity.  The tag is referenced in: 1 notes.workout field(s).`]);
+    expect(res.body.messages).toStrictEqual([`Cannot update tag with ID '${tag.id}' without breaking referential integrity.  The tag is referenced in: 1 notes.workout field(s).`]);
   });
 
   test('The data in the response body should match the request.', async () => {
@@ -624,13 +622,13 @@ describe('Update (put) an existing tag that breaks referential integrity with pe
   let res;
   let numTagsStart;
   let usedTag;
-  let changedTag;
+  let tag;
 
   test('The HTTP response status and body should indicate error.', async () => {
-    usedTag = seededTags.find((tag) => tag.name === 'Family');
+    usedTag = await Tag.findOne({ name: 'Family' });
     const numReferences = await Person.find({ tags: usedTag._id }).countDocuments();
 
-    changedTag = {
+    tag = {
       id: `${usedTag.id}`,
       name: `${usedTag.name}_v2`,
       isType: !usedTag.isType,
@@ -643,11 +641,11 @@ describe('Update (put) an existing tag that breaks referential integrity with pe
     numTagsStart = await Tag.countDocuments();
 
     res = await request(app)
-      .put(`/api/tags/${changedTag.id}`)
-      .send(changedTag);
+      .put(`/api/tags/${tag.id}`)
+      .send(tag);
     expect(res.statusCode).toBe(422);
     expect(res.body.status).toBe('error');
-    expect(res.body.messages).toStrictEqual([`Cannot update tag with ID '${changedTag.id}' without breaking referential integrity.  The tag is referenced in: ${numReferences} people.tags field(s).`]);
+    expect(res.body.messages).toStrictEqual([`Cannot update tag with ID '${tag.id}' without breaking referential integrity.  The tag is referenced in: ${numReferences} people.tags field(s).`]);
   });
 
   test('The data in the response body should match the request.', async () => {
@@ -663,20 +661,17 @@ describe('Update (put) an existing tag that breaks referential integrity with pe
 describe('Update (put) a non-existing tag with valid properties.', () => {
   let res;
   let numTagsStart;
-  let unusedTag;
   let tag;
 
   test('The HTTP response status and body should indicate error.', async () => {
-    unusedTag = seededTags.find((tag) => tag.name === 'Health');
-
     tag = {
       id: seedData.nonExistentId,
-      name: `${unusedTag.name}`,
-      isType: unusedTag.isType,
-      isTag: unusedTag.isTag,
-      isWorkout: unusedTag.isWorkout,
-      isPerson: unusedTag.isPerson,
-      description: `${unusedTag.description}`,
+      name: 'Health',
+      isType: true,
+      isTag: false,
+      isWorkout: false,
+      isPerson: false,
+      description: '',
     };
 
     numTagsStart = await Tag.countDocuments();
@@ -710,15 +705,12 @@ describe('Update (put) a non-existing tag with valid properties.', () => {
 describe('Update (put) a non-existing tag with invalid properties.', () => {
   let res;
   let numTagsStart;
-  let unusedTag;
   let tag;
 
   test('The HTTP response status and body should indicate error.', async () => {
-    unusedTag = seededTags.find((tag) => tag.name === 'Health');
-
     tag = {
       id: seedData.nonExistentId,
-      name: `${unusedTag.name}`,
+      name: 'Health',
       isType: 'isType',
       isTag: 123456789,
     };
@@ -787,7 +779,7 @@ describe('Delete an existing, unused tag.', () => {
   let tag;
 
   test('The HTTP response status and body should indicate success.', async () => {
-    tag = seededTags.find((tag) => tag.name === 'Health');
+    tag = await Tag.findOne({ name: 'Hike' });
 
     numTagsStart = await Tag.countDocuments();
 
@@ -812,7 +804,7 @@ describe('Delete an existing tag that breaks referential integrity with note typ
   let tag;
 
   test('The HTTP response status and body should indicate error.', async () => {
-    tag = seededTags.find((tag) => tag.name === 'Bike Ride');
+    tag = await Tag.findOne({ name: 'Bike Ride' });
 
     numTagsStart = await Tag.countDocuments();
 
@@ -838,7 +830,7 @@ describe('Delete an existing tag that breaks referential integrity with note tag
   let tag;
 
   test('The HTTP response status and body should indicate error.', async () => {
-    tag = seededTags.find((tag) => tag.name === 'Biking');
+    tag = await Tag.findOne({ name: 'Exploring' });
 
     numTagsStart = await Tag.countDocuments();
 
@@ -864,7 +856,7 @@ describe('Delete an existing tag that breaks referential integrity with workouts
   let tag;
 
   test('The HTTP response status and body should indicate error.', async () => {
-    tag = seededTags.find((tag) => tag.name === 'Grouse Grind');
+    tag = await Tag.findOne({ name: 'Grouse Grind' });
 
     numTagsStart = await Tag.countDocuments();
 
@@ -890,7 +882,7 @@ describe('Delete an existing tag that breaks referential integrity with people t
   let tag;
 
   test('The HTTP response status and body should indicate error.', async () => {
-    tag = seededTags.find((tag) => tag.name === 'Family');
+    tag = await Tag.findOne({ name: 'Family' });
     const numReferences = await Person.find({ tags: tag._id }).countDocuments();
 
     numTagsStart = await Tag.countDocuments();
