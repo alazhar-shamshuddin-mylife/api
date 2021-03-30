@@ -96,7 +96,7 @@ exports.delete = (req, res) => {
  * @return {Response} An HTTP response object with errors or the resulting
  *                    note.
  */
- exports.read = (req, res) => {
+exports.read = (req, res) => {
   Note
     .findById(req.params.id)
     .populate('type')
@@ -140,13 +140,10 @@ exports.readAll = (req, res) => {
     .populate('people')
     .exec((err, results) => {
       if (err) {
-        const errors = [];
-        errors.push(err);
-        errors.push({ error: 'Encountered an error getting all notes.' });
-        return res.status(500).json({ errors });
+        return res.status(500).json({ status: 'error', messages: [err] });
       }
 
-      return res.status(200).json({ data: results });
+      return res.status(200).json({ status: 'ok', messages: [], data: results });
     });
 };
 
@@ -188,7 +185,7 @@ exports.update = (req, res) => {
  *
  * @return {BikeRide} A bike ride note.
  */
- function createBikeRide(req) {
+function createBikeRide(req) {
   let note = new BikeRide();
   note = populateBaseNote(note, req);
   note.bike = req.body.bike;

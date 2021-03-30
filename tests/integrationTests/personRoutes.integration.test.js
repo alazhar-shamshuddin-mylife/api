@@ -10,8 +10,8 @@ const request = require('supertest');
 const app = require('../../app');
 const miscHelper = require('../helpers/miscHelper');
 const seedData = require('../helpers/seedData');
-const Tag = require('../../models/tag');
 const Person = require('../../models/person');
+const Tag = require('../../models/tag');
 
 let seededPeople;
 
