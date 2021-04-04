@@ -6,7 +6,7 @@ const { Schema } = mongoose;
 
 const tagSchema = new Schema({
   name: { type: String, required: true, maxlength: 25 },
-  description: { type: String, requird: false },
+  description: { type: String, required: false },
   image: { type: Buffer, required: false },
   isType: { type: Boolean, required: true },
   isTag: { type: Boolean, required: true },

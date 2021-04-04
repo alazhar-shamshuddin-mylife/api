@@ -1,4 +1,6 @@
 const mongoose = require('mongoose');
+const moment = require('moment');
+const common = require('./common');
 
 const { Schema } = mongoose;
 
@@ -49,6 +51,18 @@ personSchema
     name = `${name} ${this.lastName}`;
 
     return name;
+  });
+
+personSchema
+  .virtual('dateCreated')
+  .get(function() {
+    return moment(this.created).format(common.dateFormat);
+  });
+
+personSchema
+  .virtual('dateUpdated')
+  .get(function() {
+    return moment(this.updated).format(common.dateFormat);
   });
 
 personSchema
