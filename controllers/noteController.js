@@ -50,7 +50,7 @@ exports.count = (req, res) => {
  */
 exports.create = [
   validateReqBody,
-  validateReqData,
+  validateReqDataForCreate,
   createNote,
 ];
 
@@ -69,19 +69,15 @@ exports.delete = (req, res) => {
     .findByIdAndRemove(req.params.id)
     .exec((err, results) => {
       if (err) {
-        return res.status(500).json({ errors: [err] });
+        return res.status(500).json({ status: 'error', messages: [err], data: req.params.id });
       }
 
       if (!results) {
-        return res.status(404).json({
-          errors: [{ error: `Could not find a note with ID '${req.params.id}'.` }],
-        });
+        const msg = `Could not find a note with ID '${req.params.id}'.`;
+        return res.status(404).json({ status: 'error', messages: [msg], data: req.params.id });
       }
 
-      return res.status(200).json({
-        message: `Successfully deleted note '${req.params.id}'.`,
-        data: results,
-      });
+      return res.status(200).json({ status: 'ok', messages: [], data: results });
     });
 };
 
@@ -104,19 +100,15 @@ exports.read = (req, res) => {
     .populate('people')
     .exec((err, results) => {
       if (err) {
-        const errors = [];
-        errors.push(err);
-        errors.push({ error: `Encountered an error finding a note with ID '${req.params.id}'.` });
-        return res.status(500).json({ errors });
+        return res.status(500).json({ status: 'error', messages: [err], data: req.params.id });
       }
 
       if (!results) {
-        return res.status(404).json({
-          errors: [{ error: `Could not find a note with ID '${req.params.id}'.` }],
-        });
+        const msg = `Could not find a note with ID '${req.params.id}'.`;
+        return res.status(404).json({ status: 'error', messages: [msg], data: req.params.id });
       }
 
-      return res.status(200).json({ data: results });
+      return res.status(200).json({ status: 'ok', messages: [], data: results });
     });
 };
 
@@ -149,30 +141,14 @@ exports.readAll = (req, res) => {
 
 /**
  * Updates (replaces) the specified note with the provided note.
-  *
+ *
  * Processes the API route PUT /api/notes/:id.
- *
- * @todo: This function has to be re-written...see personController.
- *
- * @param {Request}  req  The HTTP request object.
- * @param {Response} res  The HTTP response object.
  */
-exports.update = (req, res) => {
-  const updatedNote = req.body;
-
-  Note
-    .findOneAndUpdate({ _id: req.params.id }, updatedNote, { new: true })
-    .exec((err, results) => {
-      if (err) {
-        return res.status(500).json({ errors: [err] });
-      }
-
-      return res.status(200).json({
-        message: `Successfully updated note '${req.params.id}'.`,
-        data: results,
-      });
-    });
-};
+exports.update = [
+  validateReqBody,
+  validateReqDataForUpdate,
+  updateNote,
+];
 
 //------------------------------------------------------------------------------
 // Helpers Functions
@@ -261,6 +237,7 @@ function createLife(req) {
  */
 function createNote(req, res) {
   let note;
+  let msg;
 
   switch (req.body.type) {
     case 'Bike Ride':
@@ -282,24 +259,16 @@ function createNote(req, res) {
       note = createWorkout(req);
       break;
     default:
-      return res.status(422).json({
-        errors: [{ error: `Invalid note type '${req.body.type}'.` }],
-        data: req.body,
-      });
+      msg = `Invalid note type '${req.body.type}'.`;
+      return res.status(422).json({ status: 'error', messages: [msg], data: req.body });
   }
 
   note.save((err) => {
     if (err) {
-      return res.status(500).json({
-        errors: [err],
-        data: req.body,
-      });
+      return res.status(500).json({ status: 'error', messages: [err], data: req.body });
     }
 
-    return res.status(201).json({
-      message: 'New note created!',
-      data: note,
-    });
+    return res.status(201).json({ status: 'ok', messages: [], data: note });
   });
 
   // Return status 102 (processing) to appease the eslint consistent-return
@@ -344,8 +313,9 @@ function populateBaseNote(note, req) {
   returnNote.date = req.body.date;
   returnNote.title = req.body.title;
   returnNote.description = req.body.description;
-  returnNote.place = req.body.place;
   returnNote.people = [];
+  returnNote.place = req.body.place;
+  returnNote.photoAlbum = req.body.photoAlbum;
 
   req.queryResults.tags.forEach((object) => {
     returnNote.tags.push(object._id);
@@ -356,6 +326,65 @@ function populateBaseNote(note, req) {
   });
 
   return returnNote;
+}
+
+/**
+ * Updates an existing note as specified in the HTTP request object.
+ *
+ * @param {Request}  req  The HTTP request object.
+ * @param {Response} res  The HTTP response object.
+ *
+ * @return {Response} An HTTP response containing error information or a copy
+ *                    of the updated note.
+ */
+function updateNote(req, res) {
+  const note = req.queryResults.notes[0];
+  populateBaseNote(note, req);
+
+  let msg;
+
+  switch (req.queryResults.type[0].name) {
+    case 'Bike Ride':
+      note.bike = req.body.bike;
+      note.metrics = req.body.metrics;
+      break;
+    case 'Book':
+      note.authors = req.body.authors;
+      note.format = req.body.format;
+      note.status = req.body.status;
+      note.rating = req.body.rating;
+      break;
+    case 'Health':
+      break;
+    case 'Hike':
+      note.metrics = req.body.metrics;
+      break;
+    case 'Life':
+      break;
+    case 'Workout':
+      note.workout = req.queryResults.workout[0]._id;
+      note.metrics = req.body.metrics;
+      break;
+    default:
+      msg = `Invalid note type '${req.body.type}'.`;
+      return res.status(422).json({ status: 'error', messages: [msg], data: req.body });
+  }
+
+  note.save((err) => {
+    if (err) {
+      return res.status(500).json({ status: 'error', messages: [err], data: req.body });
+    }
+
+    return res.status(200).json({ status: 'ok', messages: [], data: note });
+  });
+
+  // Return status 102 (processing) to appease the eslint consistent-return
+  // rule.  Note that this return statement is *always* executed before those
+  // in note.save().  If we attempt to return a JSON object, the app will crash
+  // when the return statements in note.save() execute with the following
+  // error: "Error [ERR_HTTP_HEADERS_SENT]: Cannot set headers after they
+  // are sent to the client".
+  return res.status(102);
 }
 
 /**
@@ -397,7 +426,7 @@ async function validateBaseNote(req) {
 
   await body('people')
     .isArray()
-    .withMessage('People must be specified in an array.')
+    .withMessage('People must be specified in an array; an empty array is okay.')
     .not()
     .custom(arrayHelper.containsDuplicates)
     .withMessage('Duplicate names are not allowed.')
@@ -443,10 +472,10 @@ async function validateBikeRide(req) {
     .withMessage(`The metrics data source must be one of: '${metricSources.join(', ')}'.`)
     .run(req);
 
-  await body('metrics.*.startDate', 'Start date must be a valid date.')
+  await body('metrics.*.startDate', 'Start date must be a valid ISO 8601 date/time.')
     .optional()
     .trim()
-    .isDate()
+    .isISO8601({ strict: true, strictSeparator: true })
     .run(req);
 
   await body('metrics.*.movingTime', 'Moving time must be an integer greater than or equal to 0 s.')
@@ -621,7 +650,6 @@ async function validateReqBody(req, res, next) {
       status: 'error',
       messages: validationErrors.array(),
       data: req.body,
-      function: 'validateReqBody',
     });
   }
 
@@ -643,18 +671,22 @@ async function validateReqBody(req, res, next) {
  *
  * @return {@todo} An HTTP error response or next middleware function.
  */
-async function validateReqData(req, res, next) {
+async function validateReqDataForCreate(req, res, next) {
   async.parallel({
+    notes: (callback) => {
+      Note.find({ date: req.body.date, title: req.body.title }).exec(callback);
+    },
+
     type: (callback) => {
-      Tag.find({ name: req.body.type }).exec(callback);
+      Tag.find({ name: req.body.type, isType: true }).exec(callback);
     },
 
     tags: (callback) => {
-      Tag.find({ name: { $in: req.body.tags } }).exec(callback);
+      Tag.find({ name: { $in: req.body.tags }, isTag: true }).exec(callback);
     },
 
     workout: (callback) => {
-      Tag.find({ name: req.body.workout }).exec(callback);
+      Tag.find({ name: req.body.workout, isWorkout: true }).exec(callback);
     },
 
     people: (callback) => {
@@ -696,51 +728,166 @@ async function validateReqData(req, res, next) {
     },
   },
   (err, results) => {
-    const errors = [];
-
     if (err) {
-      errors.push(err);
+      return res.status(500).json({ status: 'error', messages: [err], data: req.body });
+    }
+
+    if (!results) {
+      const msg = 'Unexpected error: could not find any data.';
+      return res.status(500).json({ status: 'error', messages: [msg], data: req.body });
+    }
+
+    // Check that the note does not already exist.
+    if (results.notes.length !== 0) {
+      const msg = `A note with following date and title already exists: '${req.body.date}', '${req.body.title}'.`;
+      return res.status(422).json({ status: 'error', messages: [msg], data: req.body });
     }
 
     // Check that the user supplied type is a valid tag (i.e., it exists
     // in the tags database collection).
     if (!arrayHelper.areNamesValid(results.type, [req.body.type], true)) {
-      errors.push({ error: `Invalid type: ${req.body.type}` });
+      const msg = `Invalid type: '${req.body.type}'.`;
+      return res.status(422).json({ status: 'error', messages: [msg], data: req.body });
     }
 
     // Check that all user supplied tag names are valid (i.e., they exist
     // in the tags database collection).
     if (!arrayHelper.areNamesValid(results.tags, req.body.tags, false)) {
       const invalidTags = arrayHelper.getMissingItems(results.tags, req.body.tags);
-      errors.push({ error: `Invalid tag(s): ${invalidTags.join(', ')}` });
-    }
-
-    // Check that the user supplied workout is a valid tag (i.e., it exists
-    // in the tags database collection).
-    if (req.body.type === 'Workout'
-      && !arrayHelper.areNamesValid(results.workout, [req.body.workout], false)) {
-      errors.push({ error: `Invalid workout: ${req.body.workout}` });
+      const msg = `Invalid tag(s): '${invalidTags.join(', ')}'.`;
+      return res.status(422).json({ status: 'error', messages: [msg], data: req.body });
     }
 
     // Check that the user supplied people names are valid people (i.e.,
     // they exist in the people database collection).
     if (!arrayHelper.areNamesValid(results.people, req.body.people, false)) {
       const invalidPeople = arrayHelper.getMissingItems(results.people, req.body.people);
-      errors.push({ error: `Invalid people: ${invalidPeople.join(', ')}` });
+      const msg = `Invalid people: '${invalidPeople.join(', ')}'.`;
+      return res.status(422).json({ status: 'error', messages: [msg], data: req.body });
     }
 
-    if (errors.length > 0) {
-      return res.status(500).json({
-        errors,
-        data: req.body,
-        function: 'validateReqData',
-      });
+    // Check that the user supplied workout is a valid tag (i.e., it exists
+    // in the tags database collection).
+    if (req.body.type === 'Workout'
+      && !arrayHelper.areNamesValid(results.workout, [req.body.workout], false)) {
+      const msg = `Invalid workout: '${req.body.workout}'.`;
+      return res.status(422).json({ status: 'error', messages: [msg], data: req.body });
     }
 
     req.queryResults = results;
 
     // Proceed to the functions in the array of functions that define
     // exports.create.
+    return next();
+  });
+}
+
+/**
+ * Validates the data in the HTTP request body to ensure the updated note is
+ * valid.  That is, this function confirms that the updated note refers to
+ * valid/existing objects in the database when it references tags or people,
+ * for example.
+ *
+ * @param {Request}  req   The HTTP request object.
+ * @param {Response} res   The HTTP response object.
+ * @param {@todo}    next  An implicit pointer to the next Express middleware
+ *                         function that should be called.
+ *
+ * @return {@todo} An HTTP error response or next middleware function.
+ */
+async function validateReqDataForUpdate(req, res, next) {
+  async.parallel({
+    notes: (callback) => {
+      Note.find({ _id: req.params.id }).exec(callback);
+    },
+
+    notesByDateTitle: (callback) => {
+      Note.find({ date: req.body.date, title: req.body.title }).exec(callback);
+    },
+
+    type: (callback) => {
+      Tag.find({ name: req.body.type, isType: true }).exec(callback);
+    },
+
+    tags: (callback) => {
+      Tag.find({ _id: { $in: req.body.tags }, isTag: true }).exec(callback);
+    },
+
+    workout: (callback) => {
+      Tag.find({ _id: req.body.workout, isWorkout: true }).exec(callback);
+    },
+
+    people: (callback) => {
+      Person.find({ _id: req.body.people }).exec(callback);
+    },
+  },
+  (err, results) => {
+    if (err) {
+      return res.status(500).json({ status: 'error', messages: [err], data: req.body });
+    }
+
+    if (!results) {
+      const msg = 'Unexpected error: could not find any data.';
+      return res.status(500).json({ status: 'error', messages: [msg], data: req.body });
+    }
+
+    if (results.notes.length > 1) {
+      const msg = `There are '${results.notes.length}' notes with ID '${req.params.id}'; there should be only one.`;
+      return res.status(500).json({ status: 'error', messages: [msg], data: req.body });
+    }
+
+    // Check that a note with the same date and title does not already exist.
+    if (results.notesByDateTitle.length > 1) {
+      const msg = `There are '${results.notesByDateTitle.length}' notes with the date '${req.body.date}' and title '${req.body.title}'; there should be only one.`;
+      return res.status(500).json({ status: 'error', messages: [msg], data: req.body });
+    }
+
+    if (results.notes.length === 0) {
+      const msg = `A note with ID '${req.params.id}' does not exist.`;
+      return res.status(422).json({ status: 'error', messages: [msg], data: req.body });
+    }
+
+    if (results.notesByDateTitle.length === 1
+      && results.notesByDateTitle[0]._id.toString() !== req.params.id) {
+      const msg = `A note with date '${results.notesByDateTitle[0].date}' and title '${results.notesByDateTitle[0].title}' already exists.`;
+      return res.status(422).json({ status: 'error', messages: [msg], data: req.body });
+    }
+
+    // Check that the user supplied type is a valid tag (i.e., it exists
+    // in the tags database collection).
+    if (!arrayHelper.areNamesValid(results.type, [req.body.type], true)) {
+      const msg = `Invalid type: '${req.body.type}'.`;
+      return res.status(422).json({ status: 'error', messages: [msg], data: req.body });
+    }
+
+    // Check that all user supplied tag names are valid (i.e., they exist
+    // in the tags database collection).
+    if (!arrayHelper.areNamesValid(results.tags, req.body.tags, false)) {
+      const invalidTags = arrayHelper.getMissingItems(results.tags, req.body.tags);
+      const msg = `Invalid tag(s): '${invalidTags.join(', ')}'.`;
+      return res.status(422).json({ status: 'error', messages: [msg], data: req.body });
+    }
+
+    // Check that the user supplied people names are valid people (i.e.,
+    // they exist in the people database collection).
+    if (!arrayHelper.areNamesValid(results.people, req.body.people, false)) {
+      const invalidPeople = arrayHelper.getMissingItems(results.people, req.body.people);
+      const msg = `Invalid people: '${invalidPeople.join(', ')}'.`;
+      return res.status(422).json({ status: 'error', messages: [msg], data: req.body });
+    }
+
+    // Check that the user supplied workout is a valid tag (i.e., it exists
+    // in the tags database collection).
+    if (req.body.type === 'Workout'
+      && !arrayHelper.areNamesValid(results.workout, [req.body.workout], false)) {
+      const msg = `Invalid workout: '${req.body.workout}'.`;
+      return res.status(422).json({ status: 'error', messages: [msg], data: req.body });
+    }
+
+    req.queryResults = results;
+
+    // Proceed to the next function in the array of functions that define
+    // exports.update.
     return next();
   });
 }

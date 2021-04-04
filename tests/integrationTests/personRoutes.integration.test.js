@@ -1,6 +1,6 @@
 /**
  * This file contains integration tests for all REST API routes related
- * to people (i.e., /api/people*)
+ * to people (i.e., ${rootUrl}*)
  *
  * @author Alazhar Shamshuddin.
  */
@@ -13,6 +13,7 @@ const seedData = require('../helpers/seedData');
 const Person = require('../../models/person');
 const Tag = require('../../models/tag');
 
+const rootUrl = '/api/people';
 let seededPeople;
 
 beforeAll(async () => {
@@ -31,7 +32,7 @@ describe('Get the number of existing people.', () => {
   let res;
 
   test('The HTTP response status and body should indicate success.', async () => {
-    res = await request(app).get('/api/people/count');
+    res = await request(app).get(`${rootUrl}/count`);
     expect(res.statusCode).toBe(200);
     expect(res.body.status).toBe('ok');
     expect(res.body.messages).toStrictEqual([]);
@@ -39,6 +40,7 @@ describe('Get the number of existing people.', () => {
 
   test('The data in the response body should indicate the number of seeded people.', async () => {
     const numSeededPeople = await Person.countDocuments();
+
     expect(res.body.data).toBe(numSeededPeople);
   });
 });
@@ -47,7 +49,7 @@ describe('Get all existing people.', () => {
   let res;
 
   test('The HTTP response status and body should indicate success.', async () => {
-    res = await request(app).get('/api/people');
+    res = await request(app).get(rootUrl);
     expect(res.statusCode).toBe(200);
     expect(res.body.status).toBe('ok');
     expect(res.body.messages).toStrictEqual([]);
@@ -83,7 +85,7 @@ describe('Get an existing person.', () => {
   test('The HTTP response status and body should indicate success.', async () => {
     [person] = seededPeople;
 
-    res = await request(app).get(`/api/people/${person.id}`);
+    res = await request(app).get(`${rootUrl}/${person._id}`);
     expect(res.statusCode).toBe(200);
     expect(res.body.status).toBe('ok');
     expect(res.body.messages).toStrictEqual([]);
@@ -112,7 +114,7 @@ describe('Get a non-existing person.', () => {
   let res;
 
   test('The HTTP response status and body should indicate error.', async () => {
-    res = await request(app).get(`/api/people/${seedData.nonExistentId}`);
+    res = await request(app).get(`${rootUrl}/${seedData.nonExistentId}`);
     expect(res.statusCode).toBe(404);
     expect(res.body.status).toBe('error');
     expect(res.body.messages).toStrictEqual([`Could not find a person with ID '${seedData.nonExistentId}'.`]);
@@ -152,9 +154,7 @@ describe('Create a valid, new person.', () => {
   test('The HTTP response status and body should indicate success.', async () => {
     numPeopleStart = await Person.countDocuments();
 
-    res = await request(app)
-      .post('/api/people')
-      .send(person);
+    res = await request(app).post(rootUrl).send(person);
     expect(res.statusCode).toBe(201);
     expect(res.body.status).toBe('ok');
     expect(res.body.messages).toStrictEqual([]);
@@ -175,42 +175,40 @@ describe('Create a valid, new person.', () => {
     expect(res.body.data.updatedAt).toBe(res.body.data.createdAt);
 
     const tags = await Tag.find({ name: { $in: person.tags } }, 'name id').sort('name');
-    const tagIds = tags.map((tag) => tag.id);
+    const tagIds = tags.map((tag) => tag._id.toString());
     expect(res.body.data.tags).toStrictEqual(tagIds);
   });
 
   test('The number of people should increase by one.', async () => {
-    res = await request(app).get('/api/people/count');
+    res = await request(app).get(`${rootUrl}/count`);
     expect(res.body.data).toBe(numPeopleStart + 1);
   });
 });
 
 describe('Create a new person with a duplicate (first, middle and last) name.', () => {
+  const person = {
+    firstName: 'Michael',
+    middleName: '',
+    lastName: 'Smith',
+    preferredName: 'Mikey',
+    birthdate: '1950-10-31',
+    googlePhotoUrl: '',
+    notes: [],
+    photos: [],
+    picasaContactId: '',
+    tags: ['Friend'],
+  };
+
   let res;
-  let person;
   let numPeopleStart;
 
   test('The HTTP response status and body should indicate failure.', async () => {
-    person = {
-      firstName: 'Michael',
-      middleName: '',
-      lastName: 'Smith',
-      preferredName: 'Mikey',
-      birthdate: '1950-10-31',
-      googlePhotoUrl: '',
-      notes: [],
-      photos: [],
-      picasaContactId: '',
-      tags: ['Friend'],
-    };
-
     numPeopleStart = await Person.countDocuments();
-    res = await request(app)
-      .post('/api/people')
-      .send(person);
+
+    res = await request(app).post(rootUrl).send(person);
     expect(res.statusCode).toBe(422);
     expect(res.body.status).toBe('error');
-    expect(res.body.messages).toStrictEqual([`A person with following first, middle and last names already exist: '${person.firstName}', '${person.middleName}', '${person.lastName}'.`]);
+    expect(res.body.messages).toStrictEqual([`A person with the following first, middle and last names already exists: '${person.firstName}', '${person.middleName}', '${person.lastName}'.`]);
   });
 
   test('The data in the response body should match the request.', async () => {
@@ -218,7 +216,7 @@ describe('Create a new person with a duplicate (first, middle and last) name.', 
   });
 
   test('The number of people should not have changed.', async () => {
-    res = await request(app).get('/api/people/count');
+    res = await request(app).get(`${rootUrl}/count`);
     expect(res.body.data).toBe(numPeopleStart);
   });
 });
@@ -246,9 +244,8 @@ describe('Create a new person with an invalid tag.', () => {
     };
 
     numPeopleStart = await Person.countDocuments();
-    res = await request(app)
-      .post('/api/people')
-      .send(person);
+
+    res = await request(app).post(rootUrl).send(person);
     expect(res.statusCode).toBe(422);
     expect(res.body.status).toBe('error');
     expect(res.body.messages).toStrictEqual([`Invalid tag(s): ${nonPersonTags.join(', ')}.`]);
@@ -259,7 +256,7 @@ describe('Create a new person with an invalid tag.', () => {
   });
 
   test('The number of people should not have changed.', async () => {
-    res = await request(app).get('/api/people/count');
+    res = await request(app).get(`${rootUrl}/count`);
     expect(res.body.data).toBe(numPeopleStart);
   });
 });
@@ -286,9 +283,8 @@ describe('Create a new person with non-existent tag.', () => {
     };
 
     numPeopleStart = await Person.countDocuments();
-    res = await request(app)
-      .post('/api/people')
-      .send(person);
+
+    res = await request(app).post(rootUrl).send(person);
     expect(res.statusCode).toBe(422);
     expect(res.body.status).toBe('error');
     expect(res.body.messages).toStrictEqual([`Invalid tag(s): ${nonPersonTags.join(', ')}.`]);
@@ -299,7 +295,7 @@ describe('Create a new person with non-existent tag.', () => {
   });
 
   test('The number of people should not have changed.', async () => {
-    res = await request(app).get('/api/people/count');
+    res = await request(app).get(`${rootUrl}/count`);
     expect(res.body.data).toBe(numPeopleStart);
   });
 });
@@ -323,9 +319,8 @@ describe('Create a new person with other invalid properties.', () => {
     };
 
     numPeopleStart = await Person.countDocuments();
-    res = await request(app)
-      .post('/api/people')
-      .send(person);
+
+    res = await request(app).post(rootUrl).send(person);
     expect(res.statusCode).toBe(422);
     expect(res.body.status).toBe('error');
     expect(res.body.messages).toStrictEqual([
@@ -389,7 +384,7 @@ describe('Create a new person with other invalid properties.', () => {
   });
 
   test('The number of people should not have changed.', async () => {
-    res = await request(app).get('/api/people/count');
+    res = await request(app).get(`${rootUrl}/count`);
     expect(res.body.data).toBe(numPeopleStart);
   });
 });
@@ -402,6 +397,7 @@ describe('Update (put) an existing person with valid properties.', () => {
 
   test('The HTTP response status and body should indicate success.', async () => {
     existingPerson = await Person.findOne({ firstName: 'Michael', lastName: 'Smith' });
+    const tag = await Tag.findOne({ isPerson: true });
 
     person = {
       firstName: `${existingPerson.firstName}_v2`,
@@ -416,20 +412,19 @@ describe('Update (put) an existing person with valid properties.', () => {
       }],
       photos: [],
       picasaContactId: '',
-      tags: ['Friend'],
+      tags: [tag._id],
     };
 
     numPeopleStart = await Person.countDocuments();
 
-    res = await request(app)
-      .put(`/api/people/${existingPerson.id}`)
-      .send(person);
+    res = await request(app).put(`${rootUrl}/${existingPerson._id}`).send(person);
     expect(res.statusCode).toBe(200);
     expect(res.body.status).toBe('ok');
   });
 
   test('The data in the response body should match the updated person.', async () => {
-    expect(res.body.data._id).toBe(existingPerson.id);
+    expect(res.body.data._id).toBe(existingPerson._id.toString());
+    expect(JSON.stringify(res.body.data.tags)).toBe(JSON.stringify(person.tags));
     expect(res.body.data.firstName).toBe(person.firstName);
     expect(res.body.data.middleName).toBe(person.middleName);
     expect(res.body.data.lastName).toBe(person.lastName);
@@ -441,17 +436,13 @@ describe('Update (put) an existing person with valid properties.', () => {
     expect(JSON.stringify(res.body.data.photos)).toBe(JSON.stringify(person.photos));
     expect(miscHelper.IsDateEqualish(new Date(res.body.data.createdAt), new Date())).toBe(false);
     expect(res.body.data.updatedAt > res.body.data.createdAt).toBe(true);
-
-    const tags = await Tag.find({ name: { $in: person.tags } }, 'name id').sort('name');
-    const tagIds = tags.map((tag) => tag.id);
-    expect(res.body.data.tags).toStrictEqual(tagIds);
   });
 
   test('The changes to the updated person persist via a call to GET.', async () => {
-    res = await request(app).get(`/api/people/${existingPerson.id}`);
+    res = await request(app).get(`${rootUrl}/${existingPerson._id}`);
     expect(res.statusCode).toBe(200);
     expect(res.body.status).toBe('ok');
-    expect(res.body.data._id).toBe(existingPerson.id);
+    expect(res.body.data._id).toBe(existingPerson._id.toString());
     expect(res.body.data.firstName).toBe(person.firstName);
     expect(res.body.data.middleName).toBe(person.middleName);
     expect(res.body.data.lastName).toBe(person.lastName);
@@ -464,14 +455,12 @@ describe('Update (put) an existing person with valid properties.', () => {
     expect(miscHelper.IsDateEqualish(new Date(res.body.data.createdAt), new Date())).toBe(false);
     expect(res.body.data.updatedAt > res.body.data.createdAt).toBe(true);
 
-    const tags = await Tag.find({ name: { $in: person.tags } });
-    const tagIds = tags.map((tag) => tag.id);
-    const resTagIds = res.body.data.tags.map((tag) => tag._id);
-    expect(resTagIds).toStrictEqual(tagIds);
+    const resBodyTags = res.body.data.tags.map((tag) => tag._id);
+    expect(JSON.stringify(resBodyTags)).toBe(JSON.stringify(person.tags));
   });
 
   test('The number of people should not have changed.', async () => {
-    res = await request(app).get('/api/people/count');
+    res = await request(app).get(`${rootUrl}/count`);
     expect(res.body.data).toBe(numPeopleStart);
   });
 });
@@ -486,9 +475,10 @@ describe('Update (put) an existing person with a duplicate name.', () => {
   test('The HTTP response status and body should indicate failure.', async () => {
     existingPerson1 = await Person.findOne({ firstName: 'John', lastName: 'Doe' });
     existingPerson2 = await Person.findOne({ firstName: 'Janet', lastName: 'Doe' });
+    const tag = await Tag.findOne({ isPerson: true });
 
     person = {
-      id: existingPerson1.id,
+      _id: existingPerson1._id,
       firstName: existingPerson2.firstName,
       middleName: existingPerson2.middleName,
       lastName: existingPerson2.lastName,
@@ -497,25 +487,23 @@ describe('Update (put) an existing person with a duplicate name.', () => {
       notes: [],
       photos: [],
       picasaContactId: '',
-      tags: ['Friend'],
+      tags: [tag._id],
     };
 
     numPeopleStart = await Person.countDocuments();
 
-    res = await request(app)
-      .put(`/api/people/${person.id}`)
-      .send(person);
+    res = await request(app).put(`${rootUrl}/${person._id}`).send(person);
     expect(res.statusCode).toBe(422);
     expect(res.body.status).toBe('error');
     expect(res.body.messages).toStrictEqual([`A person called '${existingPerson2.name}' already exists.`]);
   });
 
   test('The data in the response body should match the request.', async () => {
-    expect(res.body.data).toStrictEqual(person);
+    expect(JSON.stringify(res.body.data)).toStrictEqual(JSON.stringify(person));
   });
 
   test('The number of people should not have changed.', async () => {
-    res = await request(app).get('/api/people/count');
+    res = await request(app).get(`${rootUrl}/count`);
     expect(res.body.data).toBe(numPeopleStart);
   });
 });
@@ -530,7 +518,7 @@ describe('Update (put) an existing person with an invalid tag.', () => {
     existingPerson = await Person.findOne({ firstName: 'John', lastName: 'Doe' });
 
     const tmpTags = await Tag.find({ isPerson: false }, 'name').limit(2);
-    const nonPersonTags = tmpTags.map((tag) => tag.name);
+    const nonPersonTags = tmpTags.map((tag) => tag._id);
 
     person = {
       firstName: 'Michael',
@@ -547,20 +535,18 @@ describe('Update (put) an existing person with an invalid tag.', () => {
 
     numPeopleStart = await Person.countDocuments();
 
-    res = await request(app)
-      .put(`/api/people/${existingPerson.id}`)
-      .send(person);
+    res = await request(app).put(`${rootUrl}/${existingPerson._id}`).send(person);
     expect(res.statusCode).toBe(422);
     expect(res.body.status).toBe('error');
     expect(res.body.messages).toStrictEqual([`Invalid tag(s): ${nonPersonTags.join(', ')}.`]);
   });
 
   test('The data in the response body should match the request.', async () => {
-    expect(res.body.data).toStrictEqual(person);
+    expect(JSON.stringify(res.body.data)).toBe(JSON.stringify(person));
   });
 
   test('The number of people should not have changed.', async () => {
-    res = await request(app).get('/api/people/count');
+    res = await request(app).get(`${rootUrl}/count`);
     expect(res.body.data).toBe(numPeopleStart);
   });
 });
@@ -587,9 +573,7 @@ describe('Update (put) an existing person with other invalid properties.', () =>
 
     numPeopleStart = await Person.countDocuments();
 
-    res = await request(app)
-      .put(`/api/people/${existingPerson.id}`)
-      .send(person);
+    res = await request(app).put(`${rootUrl}/${existingPerson._id}`).send(person);
     expect(res.statusCode).toBe(422);
     expect(res.body.status).toBe('error');
     expect(res.body.messages).toStrictEqual([
@@ -662,7 +646,7 @@ describe('Update (put) an existing person with other invalid properties.', () =>
   });
 
   test('The number of people should not have changed.', async () => {
-    res = await request(app).get('/api/people/count');
+    res = await request(app).get(`${rootUrl}/count`);
     expect(res.body.data).toBe(numPeopleStart);
   });
 });
@@ -675,6 +659,7 @@ describe('Update (put) a non-existing person with valid data.', () => {
 
   test('The HTTP response status and body should indicate error.', async () => {
     existingPerson = await Person.findOne({ firstName: 'Janet', lastName: 'Doe' });
+    const tag = await Tag.findOne({ isPerson: true });
 
     person = {
       firstName: `${existingPerson.firstName}_v2`,
@@ -689,25 +674,23 @@ describe('Update (put) a non-existing person with valid data.', () => {
       }],
       photos: [],
       picasaContactId: '',
-      tags: ['Friend'],
+      tags: [tag._id],
     };
 
     numPeopleStart = await Person.countDocuments();
 
-    res = await request(app)
-      .put(`/api/people/${seedData.nonExistentId}`)
-      .send(person);
+    res = await request(app).put(`${rootUrl}/${seedData.nonExistentId}`).send(person);
     expect(res.statusCode).toBe(422);
     expect(res.body.status).toBe('error');
     expect(res.body.messages).toStrictEqual([`A person with ID '${seedData.nonExistentId}' does not exist.`]);
   });
 
   test('The data in the response body should match the request.', async () => {
-    expect(res.body.data).toStrictEqual(person);
+    expect(JSON.stringify(res.body.data)).toBe(JSON.stringify(person));
   });
 
   test('The number of people should not have changed.', async () => {
-    res = await request(app).get('/api/people/count');
+    res = await request(app).get(`${rootUrl}/count`);
     expect(res.body.data).toBe(numPeopleStart);
   });
 });
@@ -735,9 +718,7 @@ describe('Update (put) a non-existing person with invalid data.', () => {
 
     numPeopleStart = await Person.countDocuments();
 
-    res = await request(app)
-      .put(`/api/people/${seedData.nonExistentId}`)
-      .send(person);
+    res = await request(app).put(`${rootUrl}/${seedData.nonExistentId}`).send(person);
     expect(res.statusCode).toBe(422);
     expect(res.body.status).toBe('error');
     expect(res.body.messages).toStrictEqual([{
@@ -752,7 +733,7 @@ describe('Update (put) a non-existing person with invalid data.', () => {
   });
 
   test('The number of people should not have changed.', async () => {
-    res = await request(app).get('/api/people/count');
+    res = await request(app).get(`${rootUrl}/count`);
     expect(res.body.data).toBe(numPeopleStart);
   });
 });
@@ -767,7 +748,7 @@ describe('Delete an existing, unused person.', () => {
 
     numPeopleStart = await Person.countDocuments();
 
-    res = await request(app).delete(`/api/people/${person.id}`);
+    res = await request(app).delete(`${rootUrl}/${person._id}`);
     expect(res.statusCode).toBe(200);
     expect(res.body.status).toBe('ok');
   });
@@ -777,7 +758,7 @@ describe('Delete an existing, unused person.', () => {
   });
 
   test('The number of people should decrease by one.', async () => {
-    res = await request(app).get('/api/people/count');
+    res = await request(app).get(`${rootUrl}/count`);
     expect(res.body.data).toBe(numPeopleStart - 1);
   });
 });
@@ -820,19 +801,19 @@ describe('Delete an existing person that breaks referential integrity with a not
 
     numPeopleStart = await Person.countDocuments();
 
-    res = await request(app).delete(`/api/people/${person.id}`);
+    res = await request(app).delete(`${rootUrl}/${person._id}`);
     expect(res.statusCode).toBe(422);
     expect(res.body.status).toBe('error');
-    expect(res.body.messages).toStrictEqual([`Cannot delete person with ID '${person.id}' without breaking referential integrity.  The person is referenced in: ${numReferences} notes.people field(s).`]);
+    expect(res.body.messages).toStrictEqual([`Cannot delete person with ID '${person._id}' without breaking referential integrity.  The person is referenced in: ${numReferences} notes.people field(s).`]);
     expect(1).toBe(1);
   });
 
   test('The data in the response body should match the requested person ID.', async () => {
-    expect(res.body.data).toBe(person.id.toString());
+    expect(res.body.data).toBe(person._id.toString());
   });
 
   test('The number of people should not have changed.', async () => {
-    res = await request(app).get('/api/people/count');
+    res = await request(app).get(`${rootUrl}/count`);
     expect(res.body.data).toBe(numPeopleStart);
   });
 });
@@ -844,7 +825,7 @@ describe('Delete a non-existing person.', () => {
   test('The HTTP response status and body should indicate error.', async () => {
     numPeopleStart = await Person.countDocuments();
 
-    res = await request(app).delete(`/api/people/${seedData.nonExistentId}`);
+    res = await request(app).delete(`${rootUrl}/${seedData.nonExistentId}`);
     expect(res.statusCode).toBe(404);
     expect(res.body.status).toBe('error');
     expect(res.body.messages).toStrictEqual([`Could not find a person with ID '${seedData.nonExistentId}'.`]);
@@ -855,7 +836,7 @@ describe('Delete a non-existing person.', () => {
   });
 
   test('The number of people should not have changed.', async () => {
-    res = await request(app).get('/api/people/count');
+    res = await request(app).get(`${rootUrl}/count`);
     expect(res.body.data).toBe(numPeopleStart);
   });
 });

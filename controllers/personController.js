@@ -59,33 +59,6 @@ exports.delete = [
 ];
 
 /**
- * Deletes the specified person.
- *
- * Processes the API route DELETE /api/people/:id.
- *
- * @param {Request}  req  The HTTP request object.
- * @param {Response} res  The HTTP response object.
- *
- * @return {Response} An HTTP response object with errors or the deleted person.
- */
-exports.deleteX = (req, res) => {
-  Person
-    .findByIdAndRemove(req.params.id)
-    .exec((err, results) => {
-      if (err) {
-        return res.status(500).json({ status: 'error', messages: [err], data: req.params.id });
-      }
-
-      if (!results) {
-        const msg = `Could not find a person with ID '${req.params.id}'.`;
-        return res.status(404).json({ status: 'error', messages: [msg], data: req.params.id });
-      }
-
-      return res.status(200).json({ status: 'ok', messages: [], data: results });
-    });
-};
-
-/**
  * Reads (gets) the specified person.
  *
  * Processes the API route GET /api/people/:id.
@@ -427,9 +400,14 @@ function validateReqDataForCreate(req, res, next) {
       return res.status(500).json({ status: 'error', messages: [err], data: req.body });
     }
 
+    if (!results) {
+      const msg = 'Unexpected error: could not find any data.';
+      return res.status(500).json({ status: 'error', messages: [msg], data: req.body });
+    }
+
     // Check that the person does not already exist.
     if (results.people.length !== 0) {
-      const msg = `A person with following first, middle and last names already exist: '${req.body.firstName}', '${req.body.middleName}', '${req.body.lastName}'.`;
+      const msg = `A person with the following first, middle and last names already exists: '${req.body.firstName}', '${req.body.middleName}', '${req.body.lastName}'.`;
       return res.status(422).json({ status: 'error', messages: [msg], data: req.body });
     }
 
@@ -442,6 +420,9 @@ function validateReqDataForCreate(req, res, next) {
     }
 
     req.queryResults = results;
+
+    // Proceed to the next function in the array of functions that define
+    // exports.create.
     return next();
   });
 }
@@ -473,7 +454,7 @@ function validateReqDataForUpdate(req, res, next) {
     },
 
     tags: (callback) => {
-      Tag.find({ name: { $in: req.body.tags }, isPerson: true }).exec(callback);
+      Tag.find({ _id: { $in: req.body.tags }, isPerson: true }).exec(callback);
     },
   },
   (err, results) => {
@@ -497,14 +478,14 @@ function validateReqDataForUpdate(req, res, next) {
       return res.status(500).json({ status: 'error', messages: [msg], data: req.body });
     }
 
-    if (results.peopleByName.length === 1
-      && results.peopleByName[0]._id.toString() !== req.params.id) {
-      const msg = `A person called '${results.peopleByName[0].name}' already exists.`;
+    if (results.people.length === 0) {
+      const msg = `A person with ID '${req.params.id}' does not exist.`;
       return res.status(422).json({ status: 'error', messages: [msg], data: req.body });
     }
 
-    if (results.people.length === 0) {
-      const msg = `A person with ID '${req.params.id}' does not exist.`;
+    if (results.peopleByName.length === 1
+      && results.peopleByName[0]._id.toString() !== req.params.id) {
+      const msg = `A person called '${results.peopleByName[0].name}' already exists.`;
       return res.status(422).json({ status: 'error', messages: [msg], data: req.body });
     }
 
@@ -517,6 +498,9 @@ function validateReqDataForUpdate(req, res, next) {
     }
 
     req.queryResults = results;
+
+    // Proceed to the next function in the array of functions that define
+    // exports.update.
     return next();
   });
 }

@@ -495,7 +495,7 @@ function validateReqDataForUpdate(req, res, next) {
 
     // Check that the user supplied tag name does not already exist.
     if (results.tagByName.length > 1) {
-      const msg = `There are '${results.tagByName.length}' tags with the name ${req.body.name}; there should be only one.`;
+      const msg = `There are '${results.tagByName.length}' tags with the name '${req.body.name}'; there should be only one.`;
       return res.status(500).json({ status: 'error', messages: [msg], data: req.body });
     }
 

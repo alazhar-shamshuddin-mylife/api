@@ -1,6 +1,10 @@
 /**
  * This file seeds (creates) MyLife data for the integration tests.
  *
+ * NOTE: The services offered by this file assume all tests will be run
+ * in sequence (i.e., npx jest test --runInBand).  They are not designed to
+ * be used by multiple test packages running in parallel.
+ *
  * @author Alazhar Shamshuddin.
  */
 
