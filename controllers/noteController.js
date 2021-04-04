@@ -462,14 +462,14 @@ async function validateBikeRide(req) {
     .withMessage('Metrics must be specified in an array if it is specified at all.')
     .not()
     .custom(arrayHelper.containsDuplicates)
-    .withMessage('Duplicate tags are not allowed.')
+    .withMessage('Duplicate metric sets are not allowed.')
     .run(req);
 
   await body('metrics.*.dataSource')
     .optional()
     .trim()
     .isIn(metricSources)
-    .withMessage(`The metrics data source must be one of: '${metricSources.join(', ')}'.`)
+    .withMessage(`Data source must be one of: ${metricSources.join(', ')}.`)
     .run(req);
 
   await body('metrics.*.startDate', 'Start date must be a valid ISO 8601 date/time.')
@@ -551,9 +551,9 @@ async function validateBook(req) {
     .isIn(statuses)
     .run(req);
 
-  await body('rating', 'Rating must be an integer between 1 and 5.')
+  await body('rating', 'Rating must be an integer between 1 and 10.')
     .optional()
-    .isInt({ min: 1, max: 5 })
+    .isInt({ min: 1, max: 10 })
     .run(req);
 }
 
@@ -739,7 +739,7 @@ async function validateReqDataForCreate(req, res, next) {
 
     // Check that the note does not already exist.
     if (results.notes.length !== 0) {
-      const msg = `A note with following date and title already exists: '${req.body.date}', '${req.body.title}'.`;
+      const msg = `A note with the following date and title already exists: '${req.body.date}', '${req.body.title}'.`;
       return res.status(422).json({ status: 'error', messages: [msg], data: req.body });
     }
 
@@ -849,7 +849,7 @@ async function validateReqDataForUpdate(req, res, next) {
 
     if (results.notesByDateTitle.length === 1
       && results.notesByDateTitle[0]._id.toString() !== req.params.id) {
-      const msg = `A note with date '${results.notesByDateTitle[0].date}' and title '${results.notesByDateTitle[0].title}' already exists.`;
+      const msg = `A note with the following date and title already exists: '${req.body.date}', '${req.body.title}'.`;
       return res.status(422).json({ status: 'error', messages: [msg], data: req.body });
     }
 

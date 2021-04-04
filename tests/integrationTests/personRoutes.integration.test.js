@@ -468,13 +468,11 @@ describe('Update (put) an existing person with valid properties.', () => {
 describe('Update (put) an existing person with a duplicate name.', () => {
   let res;
   let numPeopleStart;
-  let existingPerson1;
-  let existingPerson2;
   let person;
 
   test('The HTTP response status and body should indicate failure.', async () => {
-    existingPerson1 = await Person.findOne({ firstName: 'John', lastName: 'Doe' });
-    existingPerson2 = await Person.findOne({ firstName: 'Janet', lastName: 'Doe' });
+    const existingPerson1 = await Person.findOne({ firstName: 'John', lastName: 'Doe' });
+    const existingPerson2 = await Person.findOne({ firstName: 'Janet', lastName: 'Doe' });
     const tag = await Tag.findOne({ isPerson: true });
 
     person = {
