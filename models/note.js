@@ -8,7 +8,7 @@ const noteSchema = new Schema({
   type: { type: Schema.Types.ObjectId, ref: 'Tag', required: true },
   tags: [{ type: Schema.Types.ObjectId, ref: 'Tag', required: false }],
   date: { type: Date, required: true },
-  title: { type: String, required: true, maxlength: 200 },
+  title: { type: String, required: true, maxLength: 200 },
   description: { type: String, required: false },
   people: [{ type: Schema.Types.ObjectId, ref: 'Person', required: false }],
   place: { type: String, required: false },

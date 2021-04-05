@@ -495,22 +495,22 @@ async function validateBikeRide(req) {
 
   await body('metrics.*.avgSpeed', 'Average speed must be greater than or equal to 0 km/h.')
     .optional()
-    .isNumeric({ min: 0 })
+    .isFloat({ min: 0 })
     .run(req);
 
   await body('metrics.*.maxSpeed', 'Maximum speed must be greater than or equal to 0 km/h.')
     .optional()
-    .isNumeric({ min: 0 })
+    .isFloat({ min: 0 })
     .run(req);
 
   await body('metrics.*.elevationGain', 'Elevation gain must be a number in metres.')
     .optional()
-    .isNumeric()
+    .isFloat()
     .run(req);
 
   await body('metrics.*.maxElevation', 'Maximum elevation must be a number in metres.')
     .optional()
-    .isNumeric()
+    .isFloat()
     .run(req);
 }
 
@@ -570,13 +570,24 @@ async function validateHike(req) {
     .withMessage('Metrics must be specified in an array if it is specified at all.')
     .not()
     .custom(arrayHelper.containsDuplicates)
-    .withMessage('Duplicate tags are not allowed.')
+    .withMessage('Duplicate metric sets are not allowed.')
     .run(req);
 
-  await body('metrics.*.startDate', 'Start date must be a valid date.')
+  await body('metrics.*.dataSource')
     .optional()
     .trim()
-    .isDate()
+    .isLength({ max: 100 })
+    .run(req);
+
+  await body('metrics.*.startDate', 'Start date must be a valid ISO 8601 date/time.')
+    .optional()
+    .trim()
+    .isISO8601({ strict: true, strictSeparator: true })
+    .run(req);
+
+  await body('metrics.*.movingTime', 'Moving time must be an integer greater than or equal to 0 s.')
+    .optional()
+    .isInt({ min: 0 })
     .run(req);
 
   await body('metrics.*.totalTime', 'Total time must be an integer greater than or equal to 0 s.')
@@ -586,17 +597,27 @@ async function validateHike(req) {
 
   await body('metrics.*.distance', 'Distance must be an integer greater than or equal to 0 km.')
     .optional()
-    .isInt({ min: 0 })
+    .isFloat({ min: 0 })
+    .run(req);
+
+  await body('metrics.*.avgSpeed', 'Average speed must be greater than or equal to 0 km/h.')
+    .optional()
+    .isFloat({ min: 0 })
+    .run(req);
+
+  await body('metrics.*.maxSpeed', 'Maximum speed must be greater than or equal to 0 km/h.')
+    .optional()
+    .isFloat({ min: 0 })
     .run(req);
 
   await body('metrics.*.elevationGain', 'Elevation gain must be a number in metres.')
     .optional()
-    .isNumeric()
+    .isFloat()
     .run(req);
 
   await body('metrics.*.maxElevation', 'Maximum elevation must be a number in metres.')
     .optional()
-    .isNumeric()
+    .isFloat()
     .run(req);
 }
 
@@ -904,10 +925,22 @@ async function validateWorkout(req) {
     .isLength({ min: 1 })
     .run(req);
 
-  await body('metrics.*.property', 'A workout property  is required.')
-    .trim()
+  await body('metrics')
+    .optional()
+    .isArray()
+    .withMessage('Metrics must be specified in an array if it is specified at all.')
+    .not()
+    .custom(arrayHelper.containsDuplicates)
+    .withMessage('Duplicate metric sets are not allowed.')
     .run(req);
 
-  await body('metrics.*.value', 'A value for a workout property is required.')
+  await body('metrics.*.property', 'Property is required.')
+    .trim()
+    .isLength({ min: 1, max: 25 })
+    .run(req);
+
+  await body('metrics.*.value', 'Value is required.')
+    .not()
+    .isEmpty()
     .run(req);
 }

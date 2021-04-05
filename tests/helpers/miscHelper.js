@@ -6,14 +6,15 @@
  */
 
 /**
- * Checks if the two arrays of bike ride metric objects are the same.
+ * Checks if the two arrays of metric objects are the same.  This function
+ * is intended to work for both bike ride and hike metrics.
  *
- * @param {BikeRide.metrics} metrics1  A BikeRide.metrics array.
- * @param {BikeRide.metrics} metrics2  Another BikeRide.metrics array.
+ * @param {*.metrics} metrics1  An array of BikeRide or Hike.metrics data.
+ * @param {*.metrics} metrics2  Another array of BikeRide or Hike.metrics data.
  *
  * @return {boolean} True if the two arrays are the same; false otherwise.
  */
-function areBikeRideMetricsEqual(metrics1, metrics2) {
+function areMetricsEqual(metrics1, metrics2) {
   if (metrics1.length === metrics2.length) {
     return metrics1.every((metric1, index) => {
       const date1 = new Date(metric1.startDate);
@@ -28,6 +29,31 @@ function areBikeRideMetricsEqual(metrics1, metrics2) {
         && metric1.maxSpeed === metrics2[index].maxSpeed
         && metric1.elevationGain === metrics2[index].elevationGain
         && metric1.maxElevation === metrics2[index].maxElevation);
+    });
+  }
+
+  return false;
+}
+
+/**
+ * Checks if the two arrays of workout metrics data are the same.
+ *
+ * @param {Workout.metrics} metrics1  An array of Workout.metrics data.
+ * @param {Workout.metrics} metrics2  Another array of Workout.metrics data.
+ *
+ * @return {boolean} True if the two arrays are the same; false otherwise.
+ */
+function areWorkoutMetricsEqual(metrics1, metrics2) {
+  if (metrics1.length === metrics2.length) {
+    return metrics1.every((metric1, index) => {
+      Object.keys(metric1).forEach((key) => {
+        if (key === '_id') {
+          return metric1[key] === metrics2[index][key];
+        }
+
+        return true;
+      });
+      return true;
     });
   }
 
@@ -82,7 +108,8 @@ function IsDateEqualish(date1, date2, diffThreshold = 50) {
 }
 
 module.exports = {
-  areBikeRideMetricsEqual,
+  areMetricsEqual,
   arePersonNotesEqual,
+  areWorkoutMetricsEqual,
   IsDateEqualish,
 };

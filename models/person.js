@@ -5,13 +5,13 @@ const common = require('./common');
 const { Schema } = mongoose;
 
 const personSchema = new Schema({
-  firstName: { type: String, required: true, minlength: 1, maxlength: 25 },
-  middleName: { type: String, required: false, maxlength: 25 },
-  lastName: { type: String, required: false, maxlength: 25 },
-  preferredName: { type: String, required: false, maxlength: 25 },
+  firstName: { type: String, required: true, minLength: 1, maxLength: 25 },
+  middleName: { type: String, required: false, maxLength: 25 },
+  lastName: { type: String, required: false, maxLength: 25 },
+  preferredName: { type: String, required: false, maxLength: 25 },
   birthdate: { type: Date, required: false },
-  googlePhotoUrl: { type: String, required: false, maxlength: 250 },
-  picasaContactId: { type: String, required: false, maxlength: 16 },
+  googlePhotoUrl: { type: String, required: false, maxLength: 250 },
+  picasaContactId: { type: String, required: false, maxLength: 16 },
   tags: [{ type: Schema.Types.ObjectId, ref: 'Tag', required: true }],
   notes: [{
     date: { type: Date, required: true, default: Date.now },

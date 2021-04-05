@@ -5,7 +5,7 @@ const common = require('./common');
 const { Schema } = mongoose;
 
 const tagSchema = new Schema({
-  name: { type: String, required: true, maxlength: 25 },
+  name: { type: String, required: true, maxLength: 25 },
   description: { type: String, required: false },
   image: { type: Buffer, required: false },
   isType: { type: Boolean, required: true },

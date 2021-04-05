@@ -4,7 +4,7 @@ const Note = require('./note');
 const { Schema } = mongoose;
 
 const bookSchema = new Schema({
-  authors: [{ type: String, required: true, maxlength: 100 }],
+  authors: [{ type: String, required: true, maxLength: 100 }],
   format: { type: String, required: false, enum: ['Book', 'eBook', 'Audiobook'] },
   status: { type: String, required: true, enum: ['Completed', 'Abandoned'] },
   rating: { type: Number, required: false, min: 1, max: 10 },
