@@ -307,10 +307,10 @@ async function validateReqBody(req, res, next) {
     .isLength({ max: 250 })
     .run(req);
 
-  await body('picasaContactId', 'A Picasa Contact ID is required; it can be an empty string or a 16-character ID.')
+  await body('picasaContactId', 'A Picasa Contact ID is required; it can be an empty string or a 12 to 16-character ID.')
     .exists()
     .trim()
-    .custom((value) => value.length === 0 || value.length === 16)
+    .custom((value) => value.length === 0 || (value.length >= 12 && value.length <= 16))
     .run(req);
 
   await body('tags')

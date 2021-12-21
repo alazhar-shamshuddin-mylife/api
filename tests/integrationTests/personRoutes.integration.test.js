@@ -349,7 +349,7 @@ describe('Create a new person with other invalid properties.', () => {
       },
       {
         value: '12345678901234567',
-        msg: 'A Picasa Contact ID is required; it can be an empty string or a 16-character ID.',
+        msg: 'A Picasa Contact ID is required; it can be an empty string or a 12 to 16-character ID.',
         param: 'picasaContactId',
         location: 'body',
       },
@@ -605,7 +605,7 @@ describe('Update (put) an existing person with other invalid properties.', () =>
       },
       {
         value: '1234',
-        msg: 'A Picasa Contact ID is required; it can be an empty string or a 16-character ID.',
+        msg: 'A Picasa Contact ID is required; it can be an empty string or a 12 to 16-character ID.',
         param: 'picasaContactId',
         location: 'body',
       },
